@@ -9,7 +9,9 @@ hc: org.apache.spark.sql.hive.HiveContext = org.apache.spark.sql.hive.HiveContex
 
 
 NOTE: above 2 statements mandotory while integrating hive with spark.
-      we should copy hive-site.xml file into spark conf directory.
+      we should copy hive-site.xml file into spark conf directory.          // for spark 1.6 version only
+
+
 
 
 
