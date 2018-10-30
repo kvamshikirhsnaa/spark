@@ -1,0 +1,20 @@
+{ "isActive": false,
+    "balance": "$1,431.73",
+    "picture": "http://placehold.it/32x32",
+    "age": 35,
+    "eyeColor": "blue"
+  },
+{
+    "isActive": true,
+    "balance": "$2,515.60",
+    "picture": "http://placehold.it/32x32",
+    "age": 34,
+    "eyeColor": "blue"
+  }, 
+{
+    "isActive": false,
+    "balance": "$3,765.29",
+    "picture": "http://placehold.it/32x32",
+    "age": 26,
+    "eyeColor": "blue"
+  }

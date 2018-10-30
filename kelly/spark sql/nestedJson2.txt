@@ -1,0 +1,81 @@
+Nested Json:
+------------
+scala> val sqlContext = new org.apache.spark.sql.SQLContext(sc)
+warning: there was one deprecation warning; re-run with -deprecation for details
+sqlContext: org.apache.spark.sql.SQLContext = org.apache.spark.sql.SQLContext@6ca401ad
+
+scala> val stringRDD = sc.parallelize(Seq(""" 
+     |   { "isActive": false,
+     |     "balance": "$1,431.73",
+     |     "picture": "http://placehold.it/32x32",
+     |     "age": 35,
+     |     "eyeColor": "blue"
+     |   }""",
+     |    """{
+     |     "isActive": true,
+     |     "balance": "$2,515.60",
+     |     "picture": "http://placehold.it/32x32",
+     |     "age": 34,
+     |     "eyeColor": "blue"
+     |   }""", 
+     |   """{
+     |     "isActive": false,
+     |     "balance": "$3,765.29",
+     |     "picture": "http://placehold.it/32x32",
+     |     "age": 26,
+     |     "eyeColor": "blue"
+     |   }""")
+     | )
+stringRDD: org.apache.spark.rdd.RDD[String] = ParallelCollectionRDD[0] at parallelize at <console>:24
+
+
+scala> stringRDD.collect
+res9: Array[String] =
+Array("
+       { "isActive": false,
+           "balance": "$1,431.73",
+           "picture": "http://placehold.it/32x32",
+           "age": 35,
+           "eyeColor": "blue"
+         }", {
+          "isActive": true,
+           "balance": "$2,515.60",
+         "picture": "http://placehold.it/32x32",
+           "age": 34,
+           "eyeColor": "blue"
+         }, {
+           "isActive": false,
+           "balance": "$3,765.29",
+           "picture": "http://placehold.it/32x32",
+           "age": 26,
+           "eyeColor": "blue"
+         })
+
+
+scala> sqlContext.jsonRDD(stringRDD).registerTempTable("testjson")
+warning: there were two deprecation warnings; re-run with -deprecation for details
+                                                                                
+scala> spark.sql("SELECT age from testjson").collect
+res4: Array[org.apache.spark.sql.Row] = Array([35], [34], [26])                 
+
+scala> spark.sql("SELECT age from testjson").show()
++---+
+|age|
++---+
+| 35|
+| 34|
+| 26|
++---+
+
+scala> spark.sql("SELECT * from testjson").show()
++---+---------+--------+--------+--------------------+
+|age|  balance|eyeColor|isActive|             picture|
++---+---------+--------+--------+--------------------+
+| 35|$1,431.73|    blue|   false|http://placehold....|
+| 34|$2,515.60|    blue|    true|http://placehold....|
+| 26|$3,765.29|    blue|   false|http://placehold....|
++---+---------+--------+--------+--------------------+
+
+
+NOTE: this approach is not good bcuz we are not reading json file.
+

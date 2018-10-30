@@ -1,0 +1,206 @@
+saprk sql:
+----------
+scala> case class Line(x:Int,y:String)
+defined class Line
+
+scala> val data = spark.createDataFrame( (1 to 10).map( l => Line( l , (l+2).toString())) )
+data: org.apache.spark.sql.DataFrame = [x: int, y: string]
+
+scala> data.registerTempTable("LineTab")
+warning: there was one deprecation warning; re-run with -deprecation for details
+
+scala> spark.sql("select * from linetab").show()
++---+---+
+|  x|  y|
++---+---+
+|  1|  3|
+|  2|  4|
+|  3|  5|
+|  4|  6|
+|  5|  7|
+|  6|  8|
+|  7|  9|
+|  8| 10|
+|  9| 11|
+| 10| 12|
++---+---+
+
+scala> spark.sql("select * from linetab WHERE y > 8").show()
++---+---+
+|  x|  y|
++---+---+
+|  7|  9|
+|  8| 10|
+|  9| 11|
+| 10| 12|
++---+---+
+
+scala> spark.sql("select * from linetab WHERE y > 2 AND y < 10").show()
++---+---+
+|  x|  y|
++---+---+
+|  1|  3|
+|  2|  4|
+|  3|  5|
+|  4|  6|
+|  5|  7|
+|  6|  8|
+|  7|  9|
++---+---+
+
+scala> spark.sql("select * from linetab WHERE x >5").collect().foreach(println)
+[6,8]                                                                           
+[7,9]
+[8,10]
+[9,11]
+[10,12]
+
+
+Ex2:
+----
+gopalkrishna@ubuntu:~/spark/inputs$ cat emp.txt
+1000 Gopal 12000
+1001 Krishna 14000
+1002 Ravi 16000
+1002 Ramya 18000
+1003 Rakesh 20000
+1004 Rajesh 22000
+1005 Mounika 24000
+1006 Sravya 26000
+1007 Siya 28000
+1008 Dixitha 30000
+1009 Trinath 34000
+
+scala> val empdata = sc.textFile("inputs/emp.txt")
+empdata: org.apache.spark.rdd.RDD[String] = inputs/emp.txt MapPartitionsRDD[57] at textFile at <console>:24
+
+scala> empdata.collect
+res31: Array[String] = Array(1000 Gopal 12000, 1001 Krishna 14000, 1002 Ravi 16000, 1002 Ramya 18000, 1003 Rakesh 20000, 
+1004 Rajesh 22000, 1005 Mounika 24000, 1006 Sravya 26000, 1007 Siya 28000, 1008 Dixitha 30000, 1009 Trinath 34000)
+
+
+scala> val newdata = empdata.map(_.split(" "))
+newdata: org.apache.spark.rdd.RDD[Array[String]] = MapPartitionsRDD[62] at map at <console>:26
+
+scala> newdata.collect
+res36: Array[Array[String]] = Array(Array(1000, Gopal, 12000), Array(1001, Krishna, 14000), Array(1002, Ravi, 16000), Array(1002, Ramya, 18000), Array(1003, Rakesh, 20000), Array(1004, Rajesh, 22000), Array(1005, Mounika, 24000), Array(1006, Sravya, 26000), Array(1007, Siya, 28000), Array(1008, Dixitha, 30000), Array(1009, Trinath, 34000))
+
+scala> newdata.map(x => x(0)).collect
+res37: Array[String] = Array(1000, 1001, 1002, 1002, 1003, 1004, 1005, 1006, 1007, 1008, 1009)
+
+
+scala> val resultdata = newdata.map( e => Employee( e(0).trim.toInt , e(1),e(2).trim.toInt )).toDF()
+resultdata: org.apache.spark.sql.DataFrame = [id: int, name: string ... 1 more field]
+
+scala> resultdata.printSchema
+root
+ |-- id: integer (nullable = true)
+ |-- name: string (nullable = true)
+ |-- sal: integer (nullable = true)
+
+
+scala> resultdata.show
++----+-------+-----+
+|  id|   name|  sal|
++----+-------+-----+
+|1000|  Gopal|12000|
+|1001|Krishna|14000|
+|1002|   Ravi|16000|
+|1002|  Ramya|18000|
+|1003| Rakesh|20000|
+|1004| Rajesh|22000|
+|1005|Mounika|24000|
+|1006| Sravya|26000|
+|1007|   Siya|28000|
+|1008|Dixitha|30000|
+|1009|Trinath|34000|
++----+-------+-----+
+
+scala> resultdata.registerTempTable("employeetab")
+warning: there was one deprecation warning; re-run with -deprecation for details
+
+scala> spark.sql("select * from employeetab where sal > 15000 and sal < 30000").show
++----+-------+-----+
+|  id|   name|  sal|
++----+-------+-----+
+|1002|   Ravi|16000|
+|1002|  Ramya|18000|
+|1003| Rakesh|20000|
+|1004| Rajesh|22000|
+|1005|Mounika|24000|
+|1006| Sravya|26000|
+|1007|   Siya|28000|
++----+-------+-----+
+
+
+Ex3:
+----
+gopalkrishna@ubuntu:~/spark/inputs$ cat AccountDetails.txt
+10101,Gopal,Savings,ICICI,50000
+10201,Krishna,Current,SBI,56000
+10301,Ravi,Savings,HDFC,67000
+20201,Ramya,Savings,SBI,89000
+30303,Radha,Fixed,ICICI,560000
+50607,Sruthi,Current,AXIS,45000
+70007,Nalini,Fixed,HDFC,66000
+33333,Raj,Savings,AXIS,59500
+20201,Ramya,Savings,SBI,89000
+55303,Rakhee,Fixed,ICICI,560000
+50607,Santhosh,Current,AXIS,45000
+88007,Nandha,Fixed,HDFC,65900
+44333,Raj,Savings,SBI,79500
+
+scala> case class Account(acc_id:Int,acc_holder:String,acc_type:String,bankname:String,amt:Int)
+defined class Account
+
+scala> val accdetails = sc.textFile("inputs/AccountDetails.txt")
+accdetails: org.apache.spark.rdd.RDD[String] = inputs/AccountDetails.txt MapPartitionsRDD[82] at textFile at <console>:24
+
+scala> val newAccs = accdetails.map(x => x.split(",").map(_.trim()))
+newAccs: org.apache.spark.rdd.RDD[Array[String]] = MapPartitionsRDD[84] at map at <console>:26
+
+scala> val newAccData = newAccs.map(x => Account(x(0).toInt,x(1),x(2),x(3),x(4).toInt))
+newAccData: org.apache.spark.rdd.RDD[Account] = MapPartitionsRDD[88] at map at <console>:30
+
+scala> val accDF = newAccData.toDF
+accDF: org.apache.spark.sql.DataFrame = [acc_id: int, acc_holder: string ... 3 more fields]
+
+scala> accDF.show()
++------+----------+--------+--------+------+
+|acc_id|acc_holder|acc_type|bankname|   amt|
++------+----------+--------+--------+------+
+| 10101|     Gopal| Savings|   ICICI| 50000|
+| 10201|   Krishna| Current|     SBI| 56000|
+| 10301|      Ravi| Savings|    HDFC| 67000|
+| 20201|     Ramya| Savings|     SBI| 89000|
+| 30303|     Radha|   Fixed|   ICICI|560000|
+| 50607|    Sruthi| Current|    AXIS| 45000|
+| 70007|    Nalini|   Fixed|    HDFC| 66000|
+| 33333|       Raj| Savings|    AXIS| 59500|
+| 20201|     Ramya| Savings|     SBI| 89000|
+| 55303|    Rakhee|   Fixed|   ICICI|560000|
+| 50607|  Santhosh| Current|    AXIS| 45000|
+| 88007|    Nandha|   Fixed|    HDFC| 65900|
+| 44333|       Raj| Savings|     SBI| 79500|
++------+----------+--------+--------+------+
+
+scala> accDF.groupBy("acc_type").count().show()
++--------+-----+                                                                
+|acc_type|count|
++--------+-----+
+| Savings|    6|
+|   Fixed|    4|
+| Current|    3|
++--------+-----+
+
+scala> spark.sql("select bankname,count(*) from accounts group by bankname").show()
++--------+--------+
+|bankname|count(1)|
++--------+--------+
+|    AXIS|       3|
+|    HDFC|       3|
+|     SBI|       4|
+|   ICICI|       3|
++--------+--------+
+
+

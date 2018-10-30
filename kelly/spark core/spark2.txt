@@ -1,0 +1,237 @@
+prac:
+-----
+parallelize:
+------------
+scala> val tech = sc.parallelize(List("Spark","Scala","Java"))
+tech: org.apache.spark.rdd.RDD[String] = ParallelCollectionRDD[75] at parallelize at <console>:24
+
+scala> val technew = sc.parallelize(List("Perl","Scala","Phython"))
+technew: org.apache.spark.rdd.RDD[String] = ParallelCollectionRDD[76] at parallelize at <console>:24
+
+scala> val interTech = tech.subtract(technew)
+interTech: org.apache.spark.rdd.RDD[String] = MapPartitionsRDD[80] at subtract at <console>:28
+
+scala> interTech.collect
+res52: Array[String] = Array(Java, Spark)
+
+
+distinct:
+---------
+scala> val technologies = sc.parallelize(List("Spark","Spark","Spark","Scala","Java","Scala"))
+technologies: org.apache.spark.rdd.RDD[String] = ParallelCollectionRDD[81] at parallelize at <console>:24
+
+scala> val distTech = technologies.distinct
+distTech: org.apache.spark.rdd.RDD[String] = MapPartitionsRDD[84] at distinct at <console>:26
+
+scala> distTech.collect
+res53: Array[String] = Array(Java, Scala, Spark)
+
+
+cartesian():
+------------
+scala> val ratings = sc.parallelize(List(1,2,3))
+ratings: org.apache.spark.rdd.RDD[Int] = ParallelCollectionRDD[85] at parallelize at <console>:24
+
+scala> val tech = sc.parallelize(List("Spark","Scala","Java"))
+tech: org.apache.spark.rdd.RDD[String] = ParallelCollectionRDD[86] at parallelize at <console>:24
+
+scala> val cartRatTech = ratings.cartesian(tech)
+cartRatTech: org.apache.spark.rdd.RDD[(Int, String)] = CartesianRDD[87] at cartesian at <console>:28
+
+scala> cartRatTech.collect
+res54: Array[(Int, String)] = Array((1,Spark), (1,Scala), (1,Java), (2,Spark), (3,Spark), (2,Scala), 
+(2,Java), (3,Scala), (3,Java))
+
+self cartesian:
+---------------
+scala> val cartRating = ratings.cartesian(ratings)
+cartRating: org.apache.spark.rdd.RDD[(Int, Int)] = CartesianRDD[88] at cartesian at <console>:26
+
+scala> cartRating.collect
+res55: Array[(Int, Int)] = Array((1,1), (1,2), (1,3), (2,1), (3,1), (2,2), (2,3), (3,2), (3,3))
+
+scala> val cartTech = tech.cartesian(tech)
+cartTech: org.apache.spark.rdd.RDD[(String, String)] = CartesianRDD[89] at cartesian at <console>:26
+
+scala> cartTech.collect
+res56: Array[(String, String)] = Array((Spark,Spark), (Spark,Scala), (Spark,Java), (Scala,Spark), (Java,Spark), (Scala,Scala), (Scala,Java), (Java,Scala), (Java,Java))
+
+
+zip():
+------
+--> Both the RDDs must have the same length. In addition, both RDDs are assumed to have same number 
+    of partitions and same number of elements in each partition.
+
+scala> val ratings = sc.parallelize(List(1,2,3))
+ratings: org.apache.spark.rdd.RDD[Int] = ParallelCollectionRDD[90] at parallelize at <console>:24
+
+scala> val tech = sc.parallelize(List("Spark","Scala","Java"))
+tech: org.apache.spark.rdd.RDD[String] = ParallelCollectionRDD[91] at parallelize at <console>:24
+
+scala> val zipRatTech = ratings.zip(tech)
+zipRatTech: org.apache.spark.rdd.RDD[(Int, String)] = ZippedPartitionsRDD2[92] at zip at <console>:28
+
+scala> zipRatTech.collect
+res57: Array[(Int, String)] = Array((1,Spark), (2,Scala), (3,Java))
+
+scala> val zipRating = ratings.zip(ratings)
+zipRating: org.apache.spark.rdd.RDD[(Int, Int)] = ZippedPartitionsRDD2[93] at zip at <console>:26
+
+scala> zipRating.collect
+res58: Array[(Int, Int)] = Array((1,1), (2,2), (3,3))
+
+scala> val zipTech = tech.zip(tech)
+zipTech: org.apache.spark.rdd.RDD[(String, String)] = ZippedPartitionsRDD2[94] at zip at <console>:26
+
+scala> zipTech.collect
+res59: Array[(String, String)] = Array((Spark,Spark), (Scala,Scala), (Java,Java))
+
+scala> val zipTechRat = tech.zip(ratings)
+zipTechRat: org.apache.spark.rdd.RDD[(String, Int)] = ZippedPartitionsRDD2[95] at zip at <console>:28
+
+scala> zipTechRat.collect
+res60: Array[(String, Int)] = Array((Spark,1), (Scala,2), (Java,3))
+
+
+zipWithIndex:
+-------------
+--> The zipWithIndex method zips the elements of the source RDD with their indices and returns an RDD of pairs.
+
+scala> val names = sc.parallelize(List("AAA","BBB","CCC","DDD"))
+names: org.apache.spark.rdd.RDD[String] = ParallelCollectionRDD[96] at parallelize at <console>:24
+
+scala> val zipWithIndexNames = names.zipWithIndex
+zipWithIndexNames: org.apache.spark.rdd.RDD[(String, Long)] = ZippedWithIndexRDD[97] at zipWithIndex at <console>:26
+
+scala> zipWithIndexNames.collect
+res61: Array[(String, Long)] = Array((AAA,0), (BBB,1), (CCC,2), (DDD,3))
+
+
+groupBy():
+----------
+1) groupBy is a transformation operation in Spark hence its evaluation is lazy
+2) It is a wide operation as it shuffles data from multiple partitions and create another RDD
+3) This operation is costly as it doesn’t use combiner local to a partition to reduce the data transfer
+4) Not recommended to use when you need to do further aggregation on grouped data
+
+This function has three variants:
+---------------------------------
+1) groupBy(function)
+2) groupBy(function, [numPartition])
+3) groupBy(partitioner, function)
+
+First variant will generate hash-partitioned output with existing partitioner
+Second variant will generate hash-partitioned output with number of partitions given by numPartition
+And finally third variant will generate output using Partitioner object referenced by partitioner
+
+scala> val names = sc.parallelize(Array("Joseph", "Jimmy", "Tina","Thomas", "James", "Cory","Christine", 
+                   "Jackeline", "Juan"), 3)
+names: org.apache.spark.rdd.RDD[String] = ParallelCollectionRDD[104] at parallelize at <console>:24
+
+scala> names.partitions.size
+res67: Int = 3
+
+scala> val res = names.groupBy(x => x.charAt(0))
+res: org.apache.spark.rdd.RDD[(Char, Iterable[String])] = ShuffledRDD[106] at groupBy at <console>:26
+
+scala> res.collect
+res68: Array[(Char, Iterable[String])] = Array((T,CompactBuffer(Tina, Thomas)), (C,CompactBuffer(Cory, Christine)), 
+(J,CompactBuffer(Joseph, Jimmy, James, Jackeline, Juan)))
+
+
+coalesce():
+-----------
+scala> val numbers = sc.parallelize(1 to 100)
+numbers: org.apache.spark.rdd.RDD[Int] = ParallelCollectionRDD[107] at parallelize at <console>:24
+
+scala> numbers.partitions.size
+res80: Int = 2
+
+scala> val numbersWithOnePartition = numbers.coalesce(1)
+numbersWithOnePartition: org.apache.spark.rdd.RDD[Int] = CoalescedRDD[108] at coalesce at <console>:26
+
+scala> numbersWithOnePartition.partitions.size
+res81: Int = 1
+
+scala> numbersWithOnePartition.take(5)
+res69: Array[Int] = Array(1, 2, 3, 4, 5)
+
+repartition():
+--------------
+scala> val numbers = sc.parallelize(1 to 100)
+numbers: org.apache.spark.rdd.RDD[Int] = ParallelCollectionRDD[114] at parallelize at <console>:24
+
+scala> numbers.take(5)
+res75: Array[Int] = Array(1, 2, 3, 4, 5)
+
+scala> numbers.partitions.size
+res76: Int = 2
+
+scala> val numbersWithThreePartition = numbers.repartition(3)
+numbersWithThreePartition: org.apache.spark.rdd.RDD[Int] = MapPartitionsRDD[122] at repartition at <console>:26
+
+scala> numbersWithThreePartition.partitions.size
+res78: Int = 3
+
+
+sample():
+---------
+--> The sample method returns a sampled subset of the source RDD. It takes three input parameters. 
+--> The first parameter specifies the replacement strategy. The second parameter specifies the ratio of the
+    sample size to source RDD size. The third parameter, which is optional, specifies a random seed for sampling
+
+
+scala> val sampleNumbers = numbers.sample(true,.2)
+sampleNumbers: org.apache.spark.rdd.RDD[Int] = PartitionwiseSampledRDD[127] at sample at <console>:26
+
+scala> sampleNumbers.collect
+res83: Array[Int] = Array(8, 8)   
+
+scala> val sampleNumbers = numbers.sample(true,.3)
+sampleNumbers: org.apache.spark.rdd.RDD[Int] = PartitionwiseSampledRDD[128] at sample at <console>:26
+
+scala> sampleNumbers.collect
+res86: Array[Int] = Array(5, 7, 8)
+
+scala> val sampleNumbers = numbers.sample(false,.3)
+sampleNumbers: org.apache.spark.rdd.RDD[Int] = PartitionwiseSampledRDD[130] at sample at <console>:26
+
+scala> sampleNumbers.collect
+res88: Array[Int] = Array(1, 2, 3)
+
+scala> val sampleNumbers = numbers.sample(false,.2)
+sampleNumbers: org.apache.spark.rdd.RDD[Int] = PartitionwiseSampledRDD[131] at sample at <console>:26
+
+scala> sampleNumbers.collect
+res89: Array[Int] = Array(6, 7)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
