@@ -1,0 +1,201 @@
+Transformations on RDD of key-value Pairs:
+------------------------------------------
+scala> val stuNameMarks = sc.parallelize(List(("Raj", 70), ("Ramesh", 89), ("Rakesh", 79)))
+stuNameMarks: org.apache.spark.rdd.RDD[(String, Int)] = ParallelCollectionRDD[132] at parallelize at <console>:24
+
+scala> val stuNames = stuNameMarks.keys
+stuNames: org.apache.spark.rdd.RDD[String] = MapPartitionsRDD[133] at keys at <console>:26
+
+scala> stuNames.collect
+res90: Array[String] = Array(Raj, Ramesh, Rakesh)
+
+scala> val stuMarks = stuNameMarks.values
+stuMarks: org.apache.spark.rdd.RDD[Int] = MapPartitionsRDD[134] at values at <console>:26
+
+scala> stuMarks.collect
+res91: Array[Int] = Array(70, 89, 79)
+
+
+mapValues:
+----------
+scala> val stuNameMarks = sc.parallelize(List(("Raj", 70), ("Ramesh", 89), ("Rakesh", 79)))
+stuNameMarks: org.apache.spark.rdd.RDD[(String, Int)] = ParallelCollectionRDD[135] at parallelize at <console>:24
+
+scala> val stuMarksFiltered = stuNameMarks.mapValues { x => 2*x}
+stuMarksFiltered: org.apache.spark.rdd.RDD[(String, Int)] = MapPartitionsRDD[136] at mapValues at <console>:26
+
+scala> stuMarksFiltered.collect
+res92: Array[(String, Int)] = Array((Raj,140), (Ramesh,178), (Rakesh,158))
+
+
+join:
+-----
+scala> val data1 = sc.parallelize(List( ("Spark",10),("Scala",20),("Java",30) )) 
+data1: org.apache.spark.rdd.RDD[(String, Int)] = ParallelCollectionRDD[139] at parallelize at <console>:24
+
+scala> val data2 = sc.parallelize(List( ("Phython","PaltformDep"),("Scala","JVM"),("Spark","Cache") ))
+data2: org.apache.spark.rdd.RDD[(String, String)] = ParallelCollectionRDD[140] at parallelize at <console>:24
+
+scala> val joinData = data1.join(data2)
+joinData: org.apache.spark.rdd.RDD[(String, (Int, String))] = MapPartitionsRDD[143] at join at <console>:28
+
+scala> joinData.collect
+res93: Array[(String, (Int, String))] = Array((Scala,(20,JVM)), (Spark,(10,Cache)))
+
+scala> val joinData2 = data2.join(data1)
+joinData2: org.apache.spark.rdd.RDD[(String, (String, Int))] = MapPartitionsRDD[146] at join at <console>:28
+
+scala> joinData2.collect
+res94: Array[(String, (String, Int))] = Array((Scala,(JVM,20)), (Spark,(Cache,10)))
+
+scala> val joinData3 = data1.join(data1)
+joinData3: org.apache.spark.rdd.RDD[(String, (Int, Int))] = MapPartitionsRDD[149] at join at <console>:26
+
+scala> joinData3.collect
+res95: Array[(String, (Int, Int))] = Array((Java,(30,30)), (Scala,(20,20)), (Spark,(10,10)))
+
+scala> val joinData4 = data2.join(data2)
+joinData4: org.apache.spark.rdd.RDD[(String, (String, String))] = MapPartitionsRDD[152] at join at <console>:26
+
+scala> joinData4.collect
+res97: Array[(String, (String, String))] = Array((Phython,(PaltformDep,PaltformDep)), (Scala,(JVM,JVM)), 
+(Spark,(Cache,Cache)))
+
+
+leftOuterJoin:
+--------------
+scala> val joinData = data1.leftOuterJoin(data2)
+joinData: org.apache.spark.rdd.RDD[(String, (Int, Option[String]))] = MapPartitionsRDD[155] at leftOuterJoin at 
+<console>:28
+
+scala> joinData.collect
+res98: Array[(String, (Int, Option[String]))] = Array((Java,(30,None)), (Scala,(20,Some(JVM))), 
+(Spark,(10,Some(Cache))))
+
+rightOuterJoin:
+---------------
+scala> val joinData = data1.rightOuterJoin(data2)
+joinData: org.apache.spark.rdd.RDD[(String, (Option[Int], String))] = MapPartitionsRDD[158] at rightOuterJoin at 
+<console>:28
+
+scala> joinData.collect
+res99: Array[(String, (Option[Int], String))] = Array((Phython,(None,PaltformDep)), (Scala,(Some(20),JVM)), 
+(Spark,(Some(10),Cache)))
+
+
+fullOuterJoin:
+--------------
+scala> val joinData = data1.fullOuterJoin(data2)
+joinData: org.apache.spark.rdd.RDD[(String, (Option[Int], Option[String]))] = MapPartitionsRDD[161] at fullOuterJoin 
+at <console>:28
+
+scala> joinData.collect
+res100: Array[(String, (Option[Int], Option[String]))] = Array((Java,(Some(30),None)), (Phython,(None,Some(PaltformDep))), 
+(Scala,(Some(20),Some(JVM))), (Spark,(Some(10),Some(Cache))))
+
+
+groupByKey():
+-------------
+1) The groupByKey method returns an RDD of pairs, where the first element in a pair is a key from the source 
+   RDD and the second element is a collection of all the values that have the same key. 
+2) It is similar to the groupBy method. The difference is that groupBy is a higher-order method that takes as 
+   input a  function that returns a key for each element in the source RDD.
+3) The groupByKey method operates on an RDD of key-value pairs, so a key generator function is not required as input.
+4) groupByKey is not recommended.
+
+scala> val data1 = sc.parallelize(List( (10,1),(20,2),(10,3),(10,4),(20,8),(40,9),(20,5),(10,6) ))
+data1: org.apache.spark.rdd.RDD[(Int, Int)] = ParallelCollectionRDD[162] at parallelize at <console>:24
+
+scala> val groupByKeyData = data1.groupByKey()
+groupByKeyData: org.apache.spark.rdd.RDD[(Int, Iterable[Int])] = ShuffledRDD[163] at groupByKey at <console>:26
+
+scala> groupByKeyData.collect
+res101: Array[(Int, Iterable[Int])] = Array((40,CompactBuffer(9)), (20,CompactBuffer(2, 8, 5)), 
+(10,CompactBuffer(1, 3, 4, 6)))
+
+
+scala> val iniData = sc.parallelize(List( ("Spark",1),("Scala",2),("Spark",3),("Spark",4),("Spark",8),("Java",9),("Scala",5),("Spark",6) ))
+iniData: org.apache.spark.rdd.RDD[(String, Int)] = ParallelCollectionRDD[164] at parallelize at <console>:24
+
+scala> val groupByKeyData = iniData.groupByKey()
+groupByKeyData: org.apache.spark.rdd.RDD[(String, Iterable[Int])] = ShuffledRDD[165] at groupByKey at <console>:26
+
+scala> groupByKeyData.collect
+res102: Array[(String, Iterable[Int])] = Array((Java,CompactBuffer(9)), (Scala,CompactBuffer(2, 5)), 
+(Spark,CompactBuffer(1, 3, 4, 8, 6)))
+
+
+reduceByKey():
+--------------
+1) The higher-order reduceByKey method takes an associative binary operator as input and reduces values with 
+   the same key to a single value using the specified binary operator. 
+2) A binary operator takes two values as input and returns a single value as output. 
+3) An associative operator returns the same result regardless of the grouping of the operands. 
+4) The reduceByKey method can be used for aggregating values by key. 
+5) For example, it can be used for 
+        ---> Calculating sum
+        ---> Calculating product
+        ---> Calculating minimum or maximum of all the values mapped to the same key.
+
+NOTE: reduceByKey() is recommended instead of groupByKey().
+
+scala> val iniData = sc.parallelize(List( ("Spark",1),("Scala",2),("Spark",3),("Spark",4),("Spark",8),("Java",9),("Scala",5),("Spark",6) ))
+iniData: org.apache.spark.rdd.RDD[(String, Int)] = ParallelCollectionRDD[166] at parallelize at <console>:24
+
+sum:
+----
+scala> val sumOfIniData = iniData.reduceByKey( (x,y) => (x+y) )
+sumOfIniData: org.apache.spark.rdd.RDD[(String, Int)] = ShuffledRDD[167] at reduceByKey at <console>:26
+
+scala> sumOfIniData.collect
+res103: Array[(String, Int)] = Array((Java,9), (Scala,7), (Spark,22))
+
+min:
+----
+scala> val minByKeyData = iniData.reduceByKey((x,y) => if (x < y) x else y)
+minByKeyData: org.apache.spark.rdd.RDD[(String, Int)] = ShuffledRDD[168] at reduceByKey at <console>:26
+
+scala> minByKeyData.collect
+res104: Array[(String, Int)] = Array((Java,9), (Scala,2), (Spark,1))
+
+                            (OR)
+
+scala> val minByKeyData = iniData.reduceByKey(Math.min(_,_))
+minByKeyData: org.apache.spark.rdd.RDD[(String, Int)] = ShuffledRDD[171] at reduceByKey at <console>:26
+
+scala> minByKeyData.collect
+res107: Array[(String, Int)] = Array((Java,9), (Scala,2), (Spark,1))
+
+max:
+----
+scala> val maxByKeyData = iniData.reduceByKey((x,y) => if (x > y) x else y)
+maxByKeyData: org.apache.spark.rdd.RDD[(String, Int)] = ShuffledRDD[169] at reduceByKey at <console>:26
+
+scala> maxByKeyData.collect
+res105: Array[(String, Int)] = Array((Java,9), (Scala,5), (Spark,8))
+
+                            (OR)
+
+scala> val maxByKeyData = iniData.reduceByKey(Math.max(_,_))
+maxByKeyData: org.apache.spark.rdd.RDD[(String, Int)] = ShuffledRDD[170] at reduceByKey at <console>:26
+
+scala> maxByKeyData.collect
+res106: Array[(String, Int)] = Array((Java,9), (Scala,5), (Spark,8))
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

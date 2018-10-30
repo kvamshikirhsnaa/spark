@@ -1,0 +1,193 @@
+DIFF WAYS OF “LOADING” & “SAVING” DATA USING SPARK SQL:
+--------------------------------------------------------
+--> Spark SQL provides a unified interface for creating a DataFrame from a variety of data sources
+--> Same API can be used to create a DataFrame from a Parquet, JSON, ORC or CSV file on local
+    file system, HDFS or S3
+--> Spark SQL provides a class named DataFrameReader, which defines the interface for reading
+    data from a data source. It allows you to specify different options for reading data.
+
+NOTE: The default data source is Parquet , if NO Other format is specified. see below Example,
+
+scala> val data = spark.read.load("inputs/input.log")
+18/09/28 12:18:05 ERROR Executor: Exception in task 0.0 in stage 62.0 (TID 457)
+java.io.IOException: Could not read footer for file: FileStatus{path=file:/home/gopalkrishna/spark/inputs/input.log; isDirectory=false; length=163; replication=0; blocksize=0; modification_time=0; access_time=0; owner=; group=; permission=rw-rw-rw-; isSymlink=false}
+at org.apache.spark.sql.execution.datasources.parquet.ParquetFileFormat$$anonfun$readParquetFootersInParallel$1.apply(ParquetFileFormat.scala:513)
+
+java.io.IOException: Could not read footer: java.lang.RuntimeException:
+file:/home/gopal/Input.log is not a Parquet file
+
+
+Parquet Files:
+--------------
+Parquet is a columnar format that is supported by many other data processing systems. Spark
+SQL provides support for both reading and writing Parquet files that automatically preserves the
+schema of the original data.
+
+Parquet is a popular column-oriented storage format that can store records with nested fields
+efficiently. It is often used with tools in the Hadoop ecosystem, and it supports
+all of the data types in Spark SQL. Spark SQL provides methods for reading data directly to and from
+Parquet files.
+
+Apache Parquet is a columnar storage format for the Hadoop ecosystem. Since its inception about
+2 years ago, Parquet has gotten very good adoption due to the highly efficient compression and
+encoding schemes used that demonstrate significant performance benefits. Its ground-up design
+allows it to be used regardless of any data processing framework, data model, and programming
+language used in Hadoop ecosystem. A variety of tools and frameworks including MapReduce, Hive,
+Impala, and Pig provided the ability to work with Parquet data and a number of data models such as
+AVRO, Protobuf, and Thrift have been expanded to be used with Parquet as storage format. Parquet is
+widely adopted by a number of major companies including tech giants such as Twitter and Netflix.
+
+To Save the File as a Parquet file , use the below method.
+
+--> people.saveAsParquetFile("people.parquet")
+
+Ex:
+---
+scala> val data = sc.textFile("inputs/names.txt")
+data: org.apache.spark.rdd.RDD[String] = inputs/names.txt MapPartitionsRDD[113] at textFile at <console>:24
+
+scala> data.collect
+res58: Array[String] = Array("2013,sudheer,India,Male,25 ", "2014,eshwar,China,Male,34 ", "2013,naidu,India,Male,25 ", "2013,Ramya,USA,Female,34 ", "2014,vinay,UK,Male,25 ", "2014,charan,AUS,Male,25 ", 2014,priya,UK,Female,34)
+
+NOTE: we cann't save RDD as parquet file cuz parquet file requires schema, rdd doesn't has schema.
+
+--> now we need to convert into DF then we can save as parquet file.
+
+scala> case class Name(year:Int,name:String,country:String,sex:String,age:Int)
+defined class Name
+
+scala> val names = data.map(x => x.split(",").map(_.trim()))
+names: org.apache.spark.rdd.RDD[Array[String]] = MapPartitionsRDD[114] at map at <console>:26
+
+scala> names.collect
+res59: Array[Array[String]] = Array(Array(2013, sudheer, India, Male, 25), Array(2014, eshwar, China, Male, 34), 
+Array(2013, naidu, India, Male, 25), Array(2013, Ramya, USA, Female, 34), Array(2014, vinay, UK, Male, 25), 
+Array(2014, charan, AUS, Male, 25), Array(2014, priya, UK, Female, 34))
+
+scala> val namesDF = names.map(x => Name(x(0).toInt,x(1),x(2),x(3),x(4).toInt) ).toDF
+namesDF: org.apache.spark.sql.DataFrame = [year: int, name: string ... 3 more fields]
+
+scala> namesDF.show()
++----+-------+-------+------+---+
+|year|   name|country|   sex|age|
++----+-------+-------+------+---+
+|2013|sudheer|  India|  Male| 25|
+|2014| eshwar|  China|  Male| 34|
+|2013|  naidu|  India|  Male| 25|
+|2013|  Ramya|    USA|Female| 34|
+|2014|  vinay|     UK|  Male| 25|
+|2014| charan|    AUS|  Male| 25|
+|2014|  priya|     UK|Female| 34|
++----+-------+-------+------+---+
+
+saving as parquet file:
+-----------------------
+scala> namesDF.write.parquet("inputs/namesParq")
+
+gopalkrishna@ubuntu:~/spark/inputs$ ls -ltr namesParq
+total 8
+-rw-r--r-- 1 gopalkrishna gopalkrishna 1202 Sep 28 13:11 part-00000-9d95506e-9add-438b-9685-a287546f1717.snappy.parquet
+-rw-r--r-- 1 gopalkrishna gopalkrishna 1165 Sep 28 13:11 part-00001-9d95506e-9add-438b-9685-a287546f1717.snappy.parquet
+-rw-r--r-- 1 gopalkrishna gopalkrishna    0 Sep 28 13:11 _SUCCESS
+
+
+now reading from parquet(default) file:
+---------------------------------------
+scala> val data = spark.read.load("inputs/namesParq")
+data: org.apache.spark.sql.DataFrame = [year: int, name: string ... 3 more fields]
+
+scala> data.show()
++----+-------+-------+------+---+
+|year|   name|country|   sex|age|
++----+-------+-------+------+---+
+|2013|sudheer|  India|  Male| 25|
+|2014| eshwar|  China|  Male| 34|
+|2013|  naidu|  India|  Male| 25|
+|2013|  Ramya|    USA|Female| 34|
+|2014|  vinay|     UK|  Male| 25|
+|2014| charan|    AUS|  Male| 25|
+|2014|  priya|     UK|Female| 34|
++----+-------+-------+------+---+
+
+                       
+NOTE: for load api the default data format is parquet.
+
+2nd way to reading parquet file:
+--------------------------------
+scala> val data1 = spark.read.parquet("inputs/namesParq")
+data1: org.apache.spark.sql.DataFrame = [year: int, name: string ... 3 more fields]
+
+scala> data1.show()
++----+-------+-------+------+---+
+|year|   name|country|   sex|age|
++----+-------+-------+------+---+
+|2013|sudheer|  India|  Male| 25|
+|2014| eshwar|  China|  Male| 34|
+|2013|  naidu|  India|  Male| 25|
+|2013|  Ramya|    USA|Female| 34|
+|2014|  vinay|     UK|  Male| 25|
+|2014| charan|    AUS|  Male| 25|
+|2014|  priya|     UK|Female| 34|
++----+-------+-------+------+---+
+
+scala> data.registerTempTable("parquetFile")
+warning: there was one deprecation warning; re-run with -deprecation for details
+
+scala> parquetFile.printSchema
+root
+ |-- year: integer (nullable = true)
+ |-- name: string (nullable = true)
+ |-- country: string (nullable = true)
+ |-- sex: string (nullable = true)
+ |-- age: integer (nullable = true)
+
+scala> data.printSchema
+root
+ |-- year: integer (nullable = true)
+ |-- name: string (nullable = true)
+ |-- country: string (nullable = true)
+ |-- sex: string (nullable = true)
+ |-- age: integer (nullable = true)
+
+scala> val DF2 = spark.sql("select name,sex from parquetFile")
+DF2: org.apache.spark.sql.DataFrame = [name: string, sex: string]
+
+scala> DF2.show()
++-------+------+
+|   name|   sex|
++-------+------+
+|sudheer|  Male|
+| eshwar|  Male|
+|  naidu|  Male|
+|  Ramya|Female|
+|  vinay|  Male|
+| charan|  Male|
+|  priya|Female|
++-------+------+
+
+saving DF2 results in parquet format:
+-------------------------------------
+scala> DF2.write.save("inputs/namesParq2")
+
+gopalkrishna@ubuntu:~/spark/inputs$ ls -ltr namesParq2
+total 8
+-rw-r--r-- 1 gopalkrishna gopalkrishna 610 Sep 28 13:30 part-00000-740007a5-6d0d-49f2-81f5-62be5e850e99.snappy.parquet
+-rw-r--r-- 1 gopalkrishna gopalkrishna 597 Sep 28 13:30 part-00001-740007a5-6d0d-49f2-81f5-62be5e850e99.snappy.parquet
+-rw-r--r-- 1 gopalkrishna gopalkrishna   0 Sep 28 13:30 _SUCCESS
+ 
+
+Reading parquet:
+----------------
+val data = spark.read.load("inputs/namesParq")
+val data1 = spark.read.parquet("inputs/namesParq")
+
+Saving as parquet:
+------------------
+DF2.write.save("inputs/namesParq2") 
+namesDF.write.parquet("inputs/namesParq")
+
+
+NOTE: By defalut load and save api use parquet file format.
+
+                                                  
+

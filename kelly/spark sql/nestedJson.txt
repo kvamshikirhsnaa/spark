@@ -1,0 +1,55 @@
+multiline json:
+---------------
+scala> val readJSON = sc.wholeTextFiles("json2")
+readJSON: org.apache.spark.rdd.RDD[(String, String)] = json2 MapPartitionsRDD[113] at wholeTextFiles at <console>:26
+
+scala> readJSON.collect
+res33: Array[(String, String)] =
+Array((file:/home/gopalkrishna/spark/inputs/json2,"{
+  "isActive": false,
+    "balance": "$1,431.73",
+    "picture": "http://placehold.it/32x32",
+    "age": 35,
+    "eyeColor": "blue"
+},{
+  "isActive": true,
+  "balance": "$2,515.60",
+  "picture": "http://placehold.it/32x32",
+  "age": 34,
+  "eyeColor": "blue"
+},{
+  "isActive": false,
+  "balance": "$3,765.29",
+  "picture": "http://placehold.it/32x32",
+  "age": 26,
+  "eyeColor": "blue"
+}
+
+
+"))
+
+
+scala> val newData = readJSON.map(x => x._2).map(data => data.replaceAll("\n", ""))
+newData: org.apache.spark.rdd.RDD[String] = MapPartitionsRDD[115] at map at <console>:30
+
+scala> newData.collect
+res34: Array[String] = Array({   "isActive": false,    "balance": "$1,431.73",    "picture": "http://placehold.it/32x32",    "age": 35,    "eyeColor": "blue"},{  "isActive": true,  "balance": "$2,515.60",  "picture": "http://placehold.it/32x32",  "age": 34,  "eyeColor": "blue"},{  "isActive": false,  "balance": "$3,765.29",  "picture": "http://placehold.it/32x32",  "age": 26,  "eyeColor": "blue"})
+
+
+scala> val df = spark.read.json(newData)
+df: org.apache.spark.sql.DataFrame = [age: bigint, balance: string ... 3 more fields]
+
+scala> df.show(5)
++---+---------+--------+--------+--------------------+
+|age|  balance|eyeColor|isActive|             picture|
++---+---------+--------+--------+--------------------+
+| 35|$1,431.73|    blue|   false|http://placehold....|
++---+---------+--------+--------+--------------------+
+
+NOTEL results coming only first line(pending)
+
+
+
+
+
+

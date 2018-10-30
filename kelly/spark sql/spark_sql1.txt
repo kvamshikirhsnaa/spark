@@ -1,0 +1,190 @@
+spark sql:
+----------
+scala> val data = sc.parallelize(1 to 10)
+data: org.apache.spark.rdd.RDD[Int] = ParallelCollectionRDD[0] at parallelize at <console>:24
+
+scala> val newData = data.map(l => (l , l+10) )
+newData: org.apache.spark.rdd.RDD[(Int, Int)] = MapPartitionsRDD[1] at map at <console>:26
+
+scala> val resultData = newData.toDF("original","transformed")
+resultData: org.apache.spark.sql.DataFrame = [original: int, transformed: int]
+
+scala> resultData.printSchema
+root
+ |-- original: integer (nullable = true)
+ |-- transformed: integer (nullable = true)
+
+scala> resultData.show
++--------+-----------+
+|original|transformed|
++--------+-----------+
+|       1|         11|
+|       2|         12|
+|       3|         13|
+|       4|         14|
+|       5|         15|
+|       6|         16|
+|       7|         17|
+|       8|         18|
+|       9|         19|
+|      10|         20|
++--------+-----------+
+
+Ex2:
+----
+scala> val data = List("Spark","Scala","Java","Phython")
+data: List[String] = List(Spark, Scala, Java, Phython)
+
+scala> val newData = data.map( l => (l , l.length))
+newData: List[(String, Int)] = List((Spark,5), (Scala,5), (Java,4), (Phython,7))
+
+scala> val resultData = newData.toDF("Name" , "Length")
+resultData: org.apache.spark.sql.DataFrame = [Name: string, Length: int]
+
+scala> resultData.printSchema
+root
+ |-- Name: string (nullable = true)
+ |-- Length: integer (nullable = false)
+
+
+scala> resultData.show
++-------+------+
+|   Name|Length|
++-------+------+
+|  Spark|     5|
+|  Scala|     5|
+|   Java|     4|
+|Phython|     7|
++-------+------+
+
+
+Ex3:
+----
+scala> val numList = List(1,2,3,4,5)
+numList: List[Int] = List(1, 2, 3, 4, 5)
+
+scala> val numRDD = sc.parallelize(numList)
+numRDD: org.apache.spark.rdd.RDD[Int] = ParallelCollectionRDD[5] at parallelize at <console>:26
+
+scala> val numDF = numRDD.toDF
+numDF: org.apache.spark.sql.DataFrame = [value: int]
+
+scala> numDF.show
++-----+
+|value|
++-----+
+|    1|
+|    2|
+|    3|
+|    4|
+|    5|
++-----+
+
+Ex4:
+----
+scala> val data = sc.parallelize(List( ("Spark", 1),("Scala",2),("Phython",3),("R",4) ))
+data: org.apache.spark.rdd.RDD[(String, Int)] = ParallelCollectionRDD[9] at parallelize at <console>:24
+
+scala> val resultData = data.toDF("Technology","Rank")
+resultData: org.apache.spark.sql.DataFrame = [Technology: string, Rank: int]
+
+scala> resultData.printSchema
+root
+ |-- Technology: string (nullable = true)
+ |-- Rank: integer (nullable = true)
+
+
+scala> resultData.show
++----------+----+
+|Technology|Rank|
++----------+----+
+|     Spark|   1|
+|     Scala|   2|
+|   Phython|   3|
+|         R|   4|
++----------+----+
+
+scala> resultData.registerTempTable("techtab")
+warning: there was one deprecation warning; re-run with -deprecation for details
+
+scala> val tabList = sqlContext.sql("show tables")
+<console>:23: error: not found: value sqlContext
+       val tabList = sqlContext.sql("show tables")
+                     ^
+
+scala> val tabList = spark.sql("show tables")
+tabList: org.apache.spark.sql.DataFrame = [database: string, tableName: string ... 1 more field]
+
+NOTE: from spark2.x onwards instead sqlContext we can use spark.sql
+
+scala> tabList.show()
++--------+---------+-----------+
+|database|tableName|isTemporary|
++--------+---------+-----------+
+|        |  techtab|       true|
++--------+---------+-----------+
+
+
+scala> val bestTech = spark.sql("select * from techtab")
+bestTech: org.apache.spark.sql.DataFrame = [Technology: string, Rank: int]
+
+scala> bestTech.show()
++----------+----+
+|Technology|Rank|
++----------+----+
+|     Spark|   1|
+|     Scala|   2|
+|   Phython|   3|
+|         R|   4|
++----------+----+
+
+scala> val aTab = spark.sql("select * from techtab where Technology like '%a%'") 
+aTab: org.apache.spark.sql.DataFrame = [Technology: string, Rank: int]
+
+scala> aTab.show()
++----------+----+
+|Technology|Rank|
++----------+----+
+|     Spark|   1|
+|     Scala|   2|
++----------+----+
+
+scala> case class Line(x:Int,y:String)
+defined class Line
+
+scala> val data = spark.createDataFrame( (1 to 10).map(x => Line(x,s"val_$x")) )
+data: org.apache.spark.sql.DataFrame = [x: int, y: string]
+
+scala> data.show()
++---+------+
+|  x|     y|
++---+------+
+|  1| val_1|
+|  2| val_2|
+|  3| val_3|
+|  4| val_4|
+|  5| val_5|
+|  6| val_6|
+|  7| val_7|
+|  8| val_8|
+|  9| val_9|
+| 10|val_10|
++---+------+
+
+scala> data.show(5)
++---+-----+
+|  x|    y|
++---+-----+
+|  1|val_1|
+|  2|val_2|
+|  3|val_3|
+|  4|val_4|
+|  5|val_5|
++---+-----+
+only showing top 5 rows
+
+
+NOTE: By default show() will give 20 results only, we can increase or decrease.
+
+
+

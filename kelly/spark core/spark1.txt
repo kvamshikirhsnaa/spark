@@ -1,0 +1,187 @@
+Spark prac:
+-----------
+// Creating a Spark Context.
+val conf = new SparkConf().setAppName("MyApp")
+val sc = new SparkContext(conf)
+
+
+sortBy() vs sortByKey() vs top():
+---------------------------------
+scala> val a = sc.parallelize(Seq(1,2,3,4,5,6,8,7,9))
+a: org.apache.spark.rdd.RDD[Int] = ParallelCollectionRDD[0] at parallelize at <console>:24
+
+scala> a.top(3).foreach(println)
+9                                                                               
+8
+7
+
+scala> val b = sc.parallelize(Seq((1,2),(3,4),(5,6),(8,7),(9,10)))
+b: org.apache.spark.rdd.RDD[(Int, Int)] = ParallelCollectionRDD[2] at parallelize at <console>:24
+
+scala> b.sortBy(_._1,true).take(5).foreach(println)
+(1,2)
+(3,4)
+(5,6)
+(8,7)
+(9,10)
+
+scala> b.sortBy(_._1,false).take(5).foreach(println)
+(9,10)
+(8,7)
+(5,6)
+(3,4)
+(1,2)
+
+scala> b.sortBy(_._2,true).take(5).foreach(println)
+(1,2)
+(3,4)
+(5,6)
+(8,7)
+(9,10)
+
+scala> b.sortBy(_._2,false).take(5).foreach(println)
+(9,10)
+(8,7)
+(5,6)
+(3,4)
+(1,2)
+
+scala> b.sortByKey(false).take(5).foreach(println)
+(9,10)
+(8,7)
+(5,6)
+(3,4)
+(1,2)
+
+scala> b.sortByKey(true).take(5).foreach(println)
+(1,2)
+(3,4)
+(5,6)
+(8,7)
+(9,10)
+
+
+scala> b.top(5).foreach(println)
+(9,10)
+(8,7)
+(5,6)
+(3,4)
+(1,2)
+
+
+pracs:
+------
+reading from local file system in VmWare:
+-----------------------------------------
+scala> val file = sc.textFile("spark/inputs/input.log")
+file: org.apache.spark.rdd.RDD[String] = spark/inputs/input.log MapPartitionsRDD[52] at textFile at <console>:24
+
+scala> file.collect
+res27: Array[String] = Array(hadoop is one of the bigdata tool, bigdata is not only for hadoop, hadoop is ment for bigdata storage and processing, hadoop is good for analytics also, thanks hadoop)
+
+map():
+------
+scala> val fileLength = file.map(l => l.length)
+fileLength: org.apache.spark.rdd.RDD[Int] = MapPartitionsRDD[53] at map at <console>:26
+
+scala> fileLength.collect
+res28: Array[Int] = Array(33, 30, 49, 33, 13)
+
+filter():
+---------
+scala> val fileLength = file.filter(l => (l.length >= 33))
+fileLength: org.apache.spark.rdd.RDD[String] = MapPartitionsRDD[54] at filter at <console>:26
+
+scala> fileLength.collect
+res29: Array[String] = Array(hadoop is one of the bigdata tool, hadoop is ment for bigdata storage and processing, hadoop is good for analytics also)
+
+
+flatMap():
+----------
+scala> val fileWords = file.flatMap(l => l.split(" "))
+fileWords: org.apache.spark.rdd.RDD[String] = MapPartitionsRDD[55] at flatMap at <console>:26
+
+scala> fileWords.collect
+res32: Array[String] = Array(hadoop, is, one, of, the, bigdata, tool, bigdata, is, not, only, for, hadoop, hadoop, is, ment, for, bigdata, storage, and, processing, hadoop, is, good, for, analytics, also, thanks, hadoop)
+
+converting Array[String] to String:
+-----------------------------------
+scala> fileWords.collect.mkString("\t")
+res35: String = hadoop	is	one	of	the	bigdata	tool	bigdatais	not	only	for	hadoop	hadoop	is	ment	for	bigdatastorage	and	processing	hadoop	is	good	for	analytics	also	thanks	hadoop
+
+scala> println(fileWords.collect.mkString("\t"))
+hadoop	is	one	of	the	bigdata	tool	bigdata	is	not	only	for	hadoop	hadoop	is	ment	for	bigdata	storage	and	processing	hadoop	is	good	for	analytics	also	thanks	hadoop
+
+
+mapPartitions():
+----------------
+The higher-order mapPartitions method allows you to process data at a partition level
+The input function to the mapPartitions method takes an iterator as input and returns another iterator as output
+
+scala> val fileMapPar = file.mapPartitions(i => i.map( l => l.length))
+fileMapPar: org.apache.spark.rdd.RDD[Int] = MapPartitionsRDD[58] at mapPartitions at <console>:26
+
+scala> fileMapPar.collect
+res39: Array[Int] = Array(33, 30, 49, 33, 13)
+
+without mapPartitions():
+------------------------
+scala> val filelen = file.map(l => l.length)
+filelen: org.apache.spark.rdd.RDD[Int] = MapPartitionsRDD[59] at map at <console>:26
+
+scala> filelen.collect
+res40: Array[Int] = Array(33, 30, 49, 33, 13)  
+
+
+union:
+------
+gopalkrishna@ubuntu:~/spark/inputs$ cat file1.txt
+THIS IS LINE1
+THIS IS LINE2
+gopalkrishna@ubuntu:~/spark/inputs$ cat file2.txt
+THIS IS LINE2
+THIS IS LINE3
+THIS IS LINE4
+
+scala> val file1 = sc.textFile("spark/inputs/file1.txt")
+file1: org.apache.spark.rdd.RDD[String] = spark/inputs/file1.txt MapPartitionsRDD[65] at textFile at <console>:24
+
+scala> file1.collect
+res43: Array[String] = Array(THIS IS LINE1, THIS IS LINE2)
+
+scala> val file2 = sc.textFile("spark/inputs/file2.txt")
+file2: org.apache.spark.rdd.RDD[String] = spark/inputs/file2.txt MapPartitionsRDD[67] at textFile at <console>:24
+
+scala> file2.collect
+res44: Array[String] = Array(THIS IS LINE2, THIS IS LINE3, THIS IS LINE4)
+
+scala> println(unionFile.collect)
+[Ljava.lang.String;@33948f17
+
+scala> println(unionFile.collect.mkString("\t"))
+THIS IS LINE1	THIS IS LINE2	THIS IS LINE2	THIS IS LINE3	THIS IS LINE4
+
+scala> println(unionFile.collect.mkString("\n"))
+THIS IS LINE1
+THIS IS LINE2
+THIS IS LINE2
+THIS IS LINE3
+THIS IS LINE4
+
+scala> unionFile.collect.foreach(println)
+THIS IS LINE1                                                                   
+THIS IS LINE2
+THIS IS LINE2
+THIS IS LINE3
+THIS IS LINE4
+
+
+Intersection:
+-------------
+scala> val intersectFile = file1.intersection(file2)
+intersectFile: org.apache.spark.rdd.RDD[String] = MapPartitionsRDD[74] at intersection at <console>:28
+
+scala> intersectFile.collect
+res51: Array[String] = Array(THIS IS LINE2)
+
+
