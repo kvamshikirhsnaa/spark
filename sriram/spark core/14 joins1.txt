@@ -1,0 +1,188 @@
+Joins:
+------
+scala> val r1 = List((11,10000),(12,20000),(13,40000),(11,40000),(12,50000),(13,60000))
+r1: List[(Int, Int)] = List((11,10000), (12,20000), (13,40000), (11,40000), (12,50000), (13,60000))
+
+scala> val r2 = List((11,"Hyd"),(12,"Del"),(13,"Blore"))
+r2: List[(Int, String)] = List((11,Hyd), (12,Del), (13,Blore))
+
+scala> val a = sc.parallelize(r1)
+a: org.apache.spark.rdd.RDD[(Int, Int)] = ParallelCollectionRDD[11] at parallelize at <console>:26
+
+scala> val b = sc.parallelize(r2)
+b: org.apache.spark.rdd.RDD[(Int, String)] = ParallelCollectionRDD[12] at parallelize at <console>:26
+
+scala> a.collect
+res6: Array[(Int, Int)] = Array((11,10000), (12,20000), (13,40000), (11,40000), (12,50000), (13,60000))
+
+scala> a.collect.foreach(println)
+(11,10000)
+(12,20000)
+(13,40000)
+(11,40000)
+(12,50000)
+(13,60000)
+
+
+scala> b.collect.foreach(println)
+(11,Hyd)
+(12,Del)
+(13,Blore)
+
+scala> val res = a.join(b)
+res: org.apache.spark.rdd.RDD[(Int, (Int, String))] = MapPartitionsRDD[15] at join at <console>:32
+
+scala> res.collect.foreach(println)
+(12,(50000,Del))                                                                
+(12,(20000,Del))
+(13,(40000,Blore))
+(13,(60000,Blore))
+(11,(10000,Hyd))
+(11,(40000,Hyd))
+
+Q: sum of each city sal:
+------------------------
+scala> val pair = res.map{x =>
+     |    val city = x._2._2
+     |    val sal = x._2._1
+     |    (city,sal)
+     | }
+pair: org.apache.spark.rdd.RDD[(String, Int)] = MapPartitionsRDD[20] at map at <console>:34
+
+scala> pair.collect.foreach(println)
+(Del,50000)
+(Del,20000)
+(Blore,40000)
+(Blore,60000)
+(Hyd,10000)
+(Hyd,40000)
+
+scala> val tot = pair.reduceByKey(_+_)
+tot: org.apache.spark.rdd.RDD[(String, Int)] = ShuffledRDD[21] at reduceByKey at <console>:36
+
+scala> tot.collect
+res20: Array[(String, Int)] = Array((Blore,100000), (Del,70000), (Hyd,50000))
+
+scala> tot.collect.foreach(println)
+(Blore,100000)
+(Del,70000)
+(Hyd,50000)
+
+scala> val res1 = tot.map(x => x._1+"\t"+x._2)
+res1: org.apache.spark.rdd.RDD[String] = MapPartitionsRDD[23] at map at <console>:38
+
+scala> res1.collect.foreach(println)
+Blore   100000
+Del     70000
+Hyd     50000
+
+
+Ex2:
+----
+scala> val e = List((11,10000,2000),(12,40000,4000),(13,60000,5000),(11,80000,6000),(13,90000,9000),(12,70000,7000))
+e: List[(Int, Int, Int)] = List((11,10000,2000), (12,40000,4000), (13,60000,5000), (11,80000,6000), (13,90000,9000), (12,70000,7000))
+
+scala> val ed = sc.parallelize(e)
+ed: org.apache.spark.rdd.RDD[(Int, Int, Int)] = ParallelCollectionRDD[0] at parallelize at <console>:26
+
+scala> ed.collect.foreach(println)
+(11,10000,2000)
+(12,40000,4000)
+(13,60000,5000)
+(11,80000,6000)
+(13,90000,9000)
+(12,70000,7000)
+
+scala> val d = List((11,"Hyd"),(12,"Del"),(13,"Blore"))
+d: List[(Int, String)] = List((11,Hyd), (12,Del), (13,Blore))
+
+scala> val dd = sc.parallelize(d)
+dd: org.apache.spark.rdd.RDD[(Int, String)] = ParallelCollectionRDD[1] at parallelize at <console>:26
+
+scala> dd.collect.foreach(println)
+(11,Hyd)
+(12,Del)
+(13,Blore)
+
+scala> val j1 = ed.join(dd)
+<console>:32: error: value join is not a member of org.apache.spark.rdd.RDD[(Int, Int, Int)]
+       val j1 = ed.join(dd)
+                   ^
+
+NOTE: here RDD dd is in Tuple shape, but RDD ed is not in Tuple shape(key,value pair),
+      join operation can apply only when datasets in Tuple format(key,value pair).
+      but cartesian join can apply any dataset no need to be Tuple format.it can be collection of Strings or Ints or any.
+
+
+convert ed into Tuple shape:
+----------------------------
+scala> ed.collect.foreach(println)
+(11,10000,2000)
+(12,40000,4000)
+(13,60000,5000)
+(11,80000,6000)
+(13,90000,9000)
+(12,70000,7000)
+
+scala> val edd = ed.map{x =>
+     |    val dno = x._1
+     |    val sal = x._2
+     |    val bonus = x._3
+     |    (dno,(sal,bonus))
+     | }
+edd: org.apache.spark.rdd.RDD[(Int, (Int, Int))] = MapPartitionsRDD[2] at map at <console>:28
+
+scala> edd.collect.foreach(println)
+(11,(10000,2000))
+(12,(40000,4000))
+(13,(60000,5000))
+(11,(80000,6000))
+(13,(90000,9000))
+(12,(70000,7000))
+
+scala> val j = edd.join(dd)
+j: org.apache.spark.rdd.RDD[(Int, ((Int, Int), String))] = MapPartitionsRDD[5] at join at <console>:34
+
+scala> j.collect.foreach(println)
+(12,((70000,7000),Del))
+(12,((40000,4000),Del))
+(13,((60000,5000),Blore))
+(13,((90000,9000),Blore))
+(11,((10000,2000),Hyd))
+(11,((80000,6000),Hyd))
+
+scala> val tot = j.map{x =>
+     |    val sal = x._2._1._1
+     |    val bonus = x._2._1._2
+     |    val city = x._2._2
+     |    val amt = sal+bonus
+     |    (city,amt)
+     | }
+tot: org.apache.spark.rdd.RDD[(String, Int)] = MapPartitionsRDD[6] at map at <console>:36
+
+scala> tot.collect.foreach(println)
+(Del,77000)
+(Del,44000)
+(Blore,65000)
+(Blore,99000)
+(Hyd,12000)
+(Hyd,86000)
+
+scala> val tot1 = tot.reduceByKey(_+_)
+tot1: org.apache.spark.rdd.RDD[(String, Int)] = ShuffledRDD[7] at reduceByKey at <console>:38
+
+scala> tot1.collect.foreach(println)
+(Blore,164000)
+(Del,121000)
+(Hyd,98000)
+
+scala> val res1 = tot1.map(x => x._1+"\t"+x._2)
+res1: org.apache.spark.rdd.RDD[String] = MapPartitionsRDD[8] at map at <console>:40
+
+scala> res1.collect.foreach(println)
+Blore   164000
+Del     121000
+Hyd     98000
+
+
+

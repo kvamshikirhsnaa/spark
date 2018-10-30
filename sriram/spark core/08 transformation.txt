@@ -1,0 +1,318 @@
+[edureka_334602@ip-20-0-41-202 ~]$ hadoop fs -cat sparklab/emply1.txt
+107,tulasi,50000,F,11
+108,gouthami,70000,F,12
+109,prakash,60000,M,13
+110,narahari,80000,M,12
+111,praveen,70000,M,13
+112,janaki,40000,F,12
+101,aishwarya,80000,F,12
+102,ganga,70000,F,11
+103,vamshikrishna,90000,M,13
+104,saikrishna,100000,M,12
+105,aravindswamy,80000,M,11
+106,archana,60000,F,13
+
+scala> val data = sc.textFile("sparklab/emply1.txt")
+data: org.apache.spark.rdd.RDD[String] = sparklab/emply1.txt MapPartitionsRDD[1] at textFile at <console>:24
+
+scala> data.take(3).foreach(println)
+107,tulasi,50000,F,11
+108,gouthami,70000,F,12
+109,prakash,60000,M,13
+
+scala> data.collect
+res11: Array[String] = Array(107,tulasi,50000,F,11, 108,gouthami,70000,F,12, 109,prakash,60000,M,13, 110,narahari,80000,M,12, 111,praveen,70000,M,13, 112,janaki,40000,F,12, 101,aishwarya,80000,F,12, 
+102,ganga,70000,F,11, 103,vamshikrishna,90000,M,13, 104,saikrishna,100000,M,12, 105,aravindswamy,80000,M,11, 106,archana,60000,F,13)
+
+
+scala> val arr = data.map(x => x.split(","))
+arr: org.apache.spark.rdd.RDD[Array[String]] = MapPartitionsRDD[2] at map at <console>:26
+
+scala> arr.take(3)
+res14: Array[Array[String]] = Array(Array(107, tulasi, 50000, F, 11), Array(108, gouthami, 70000, F, 12), 
+Array(109, prakash, 60000, M, 13))
+
+scala> arr.take(3).foreach(println)
+[Ljava.lang.String;@3b7bc23a
+[Ljava.lang.String;@7f8b9fa7
+[Ljava.lang.String;@3906de9
+
+scala> arr.collect
+res12: Array[Array[String]] = Array(Array(107, tulasi, 50000, F, 11), Array(108, gouthami, 70000, F, 12), 
+Array(109, prakash, 60000, M, 13), Array(110, narahari, 80000, M, 12), Array(111, praveen, 70000, M, 13), 
+Array(112, janaki, 40000, F, 12), Array(101, aishwarya, 80000, F, 12), Array(102, ganga, 70000, F, 11), 
+Array(103,vamshikrishna, 90000, M, 13), Array(104, saikrishna, 100000, M, 12), Array(105, aravindswamy, 80000, M, 11), Array(106, archana, 60000, F, 13))
+
+scala> arr.collect.foreach(println)
+[Ljava.lang.String;@4ffe2ded                                                    
+[Ljava.lang.String;@187c011d
+[Ljava.lang.String;@3605d078
+[Ljava.lang.String;@6c86938f
+[Ljava.lang.String;@52294ab7
+[Ljava.lang.String;@2a25dd06
+[Ljava.lang.String;@323b4e2a
+[Ljava.lang.String;@6a79a909
+[Ljava.lang.String;@721d3a03
+[Ljava.lang.String;@76d404ab
+[Ljava.lang.String;@1ef64e45
+[Ljava.lang.String;@39e08d73
+
+NOTE: don't apply take().foreach or collect.foreach on nested collections(array/list).it will print reference 
+
+
+scala> val res = arr.map { x => 
+     |    val id = x(0)
+     |    val name = x(1)
+     |    val fc = name.slice(0,1).toUpperCase
+     |    val rc = name.slice(1,name.size).toLowerCase
+     |    val newName = fc+rc
+     |    val sal = x(2).toInt
+     |    val tax = sal*10/100
+     |    val hra = sal*20/100
+     |    val net = sal+hra-tax
+     |    var grade = " "
+     |    if(net>=80000) grade="A" else if(net>=60000) grade="B" else grade="c"
+     |    var sex = x(3)
+     |    sex = if(sex=='M') "male" else "female"
+     |    val dno = x(4).toInt
+     |    val dname = if(dno==11) "Marketing" else if(dno==12) "HR" else "Finance"
+     |    val r = id+"\t"+newName+"\t"+sal+"\t"+grade+"\t"+sex+"\t"+dno+"\t"+dname
+     |    r
+     | }
+res: org.apache.spark.rdd.RDD[String] = MapPartitionsRDD[3] at map at <console>:28
+
+scala> res.collect.foreach(println)
+107     Tulasi  50000   c       female  11      Marketing
+108     Gouthami        70000   B       female  12      HR
+109     Prakash 60000   B       female  13      Finance
+110     Narahari        80000   A       female  12      HR
+111     Praveen 70000   B       female  13      Finance
+112     Janaki  40000   c       female  12      HR
+101     Aishwarya       80000   A       female  12      HR
+102     Ganga   70000   B       female  11      Marketing
+103     Vamshikrishna   90000   A       female  13      Finance
+104     Saikrishna      100000  A       female  12      HR
+105     Aravindswamy    80000   A       female  11      Marketing
+106     Archana 60000   B       female  13      Finance
+
+
+                               (OR)
+
+scala> val res1 = arr.map { x => 
+     |    val id = x(0)
+     |    val name = x(1)
+     |    val fc = name.slice(0,1).toUpperCase
+     |    val rc = name.slice(1,name.size).toLowerCase
+     |    val newName = fc+rc
+     |    val sal = x(2).toInt
+     |    val tax = sal*10/100
+     |    val hra = sal*20/100
+     |    val net = sal+hra-tax
+     |    var grade = " "
+     |    if(net>=80000) grade="A" else if(net>=60000) grade="B" else grade="c"
+     |    var sex = x(3)
+     |    sex = if(sex=='M') "male" else "female"
+     |    val dno = x(4).toInt
+     |    val dname = if(dno==11) "Marketing" else if(dno==12) "HR" else "Finance"
+     |    val r = List(id,newName,sal,grade,sex,dno,dname).mkString("\t")
+     |    r
+     | }
+res1: org.apache.spark.rdd.RDD[String] = MapPartitionsRDD[5] at map at <console>:28
+
+
+scala> res1.collect.foreach(println)
+107     Tulasi  50000   c       female  11      Marketing
+108     Gouthami        70000   B       female  12      HR
+109     Prakash 60000   B       female  13      Finance
+110     Narahari        80000   A       female  12      HR
+111     Praveen 70000   B       female  13      Finance
+112     Janaki  40000   c       female  12      HR
+101     Aishwarya       80000   A       female  12      HR
+102     Ganga   70000   B       female  11      Marketing
+103     Vamshikrishna   90000   A       female  13      Finance
+104     Saikrishna      100000  A       female  12      HR
+105     Aravindswamy    80000   A       female  11      Marketing
+106     Archana 60000   B       female  13      Finance
+
+
+
+creating methods:
+-----------------
+sex method:
+-----------
+scala> def isMale(x:String) = {
+     | if(x=="M") "male" else "female"
+     | }
+isMale: (x: String)String
+
+scala> val sex = arr.map(x => isMale(x(3)))
+sex: org.apache.spark.rdd.RDD[String] = MapPartitionsRDD[6] at map at <console>:30
+
+scala> sex.collect
+res4: Array[String] = Array(female, female, male, male, male, female, female, 
+female, male, male, male, female)
+
+dept method:
+------------
+scala> def dname(x:String) = {
+     | if (x=="11") "Marekting" else if(x=="12") "HR" else "Finance"
+     | }
+dname: (x: String)String
+
+scala> val dept = arr.map(x => dname(x(4)))
+dept: org.apache.spark.rdd.RDD[String] = MapPartitionsRDD[5] at map at <console>:30
+
+scala> dept.collect
+res3: Array[String] = Array(Marekting, HR, Finance, HR, Finance, HR, HR, Marekting, 
+Finance, HR, Marekting, Finance)
+
+
+Q: select sum(sal) where sex='m'
+
+creating a method to filter 'm':
+--------------------------------
+scala> def isMale(x:String) = { 
+     | if(x=="M") "male" else "female"
+     | }
+isMale: (x: String)String
+
+NOTE: it will give result either male or female cuz return type is String.
+
+NOTE: we want only males so we need to filter only males,return type should be boolean
+
+scala> def isMale(x:String) = { 
+     | x=="M"
+     | }
+isMale: (x: String)Boolean
+
+scala> isMale("x")
+res15: Boolean = false
+
+scala> isMale("m")
+res16: Boolean = false
+
+scala> isMale("M")
+res17: Boolean = true
+
+NOTE: above method will print only true values,it will skip false values.
+
+scala> arr.collect
+res18: Array[Array[String]] = Array(Array(107, tulasi, 50000, F, 11), Array(108, gouthami, 70000, F, 12), 
+Array(109, prakash, 60000, M, 13), Array(110, narahari, 80000, M, 12), Array(111, praveen, 70000, M, 13),
+Array(112, janaki,40000, F, 12), Array(101, aishwarya, 80000, F, 12), Array(102, ganga, 70000, F, 11), 
+Array(103,vamshikrishna, 90000, M, 13), Array(104, saikrishna, 100000, M, 12), 
+Array(105, aravindswamy, 80000, M, 11), Array(106, archana, 60000, F, 13))
+
+scala> val males = arr.filter(x => isMale(x(3)))
+males: org.apache.spark.rdd.RDD[Array[String]] = MapPartitionsRDD[5] at filter at <console>:30
+
+scala> males.collect
+res2: Array[Array[String]] = Array(Array(109, prakash, 60000, M, 13), Array(110, narahari, 80000, M, 12), 
+Array(111, praveen, 70000, M, 13), Array(103, vamshikrishna, 90000, M, 13), Array(104, saikrishna, 100000, M, 12), Array(105, aravindswamy, 80000, M, 11))
+
+                                  (OR)
+
+scala> def isMale(x:String) = {
+     |   val w = x.split(",")
+     |   val sex = w(3)
+     |   sex=="M"
+     | }
+isMale: (x: String)Boolean
+
+scala> val data = sc.textFile("sparklab/emply1.txt")
+data: org.apache.spark.rdd.RDD[String] = sparklab/emply1.txt MapPartitionsRDD[1] at textFile at <console>:24
+
+scala> data.collect.foreach(println)
+107,tulasi,50000,F,11
+108,gouthami,70000,F,12
+109,prakash,60000,M,13
+110,narahari,80000,M,12
+111,praveen,70000,M,13
+112,janaki,40000,F,12
+101,aishwarya,80000,F,12
+102,ganga,70000,F,11
+103,vamshikrishna,90000,M,13
+104,saikrishna,100000,M,12
+105,aravindswamy,80000,M,11
+106,archana,60000,F,13
+
+scala> val males = data.filter(x => isMale(x))
+males: org.apache.spark.rdd.RDD[String] = MapPartitionsRDD[2] at filter at <console>:28
+
+scala> males.collect.foreach(println)
+109,prakash,60000,M,13
+110,narahari,80000,M,12
+111,praveen,70000,M,13
+103,vamshikrishna,90000,M,13
+104,saikrishna,100000,M,12
+105,aravindswamy,80000,M,11
+
+
+scala> val females = data.filter(x => !isMale(x))
+females: org.apache.spark.rdd.RDD[String] = MapPartitionsRDD[3] at filter at <console>:28
+
+scala> females.collect.foreach(println)
+107,tulasi,50000,F,11
+108,gouthami,70000,F,12
+112,janaki,40000,F,12
+101,aishwarya,80000,F,12
+102,ganga,70000,F,11
+106,archana,60000,F,13
+
+
+sum of males sal:
+-----------------
+scala> val msal = males.map(x => x(2))
+msal: org.apache.spark.rdd.RDD[Char] = MapPartitionsRDD[6] at map at <console>:30
+
+scala> msal.collect
+res4: Array[Char] = Array(9, 0, 1, 3, 4, 5)  
+
+NOTE: males is String so first we have to split and extract sal and convert into Int then apply sum.
+
+scala> val msal = males.map(x => x.split(",")(2).toInt)
+msal: org.apache.spark.rdd.RDD[Int] = MapPartitionsRDD[5] at map at <console>:30
+
+scala> val res = msal.reduce(_+_)
+res: Int = 480000
+                       (OR)
+
+scala> val msal = males.map(x => x.split(",")(2).toInt).sum
+msal: Double = 480000.0
+                          
+                        (OR)
+
+scala> val msal = males.map(x => x.split(",")(2).toInt).reduce(_+_)
+msal: Int = 480000
+
+
+sum of females sal:
+-------------------
+scala> val fsal = females.map(x => x.split(",")(2).toInt).reduce(_+_)
+fsal: Int = 370000
+
+male max sal:
+-------------
+scala> val malemaxsal = males.map(x => x.split(",")(2).toInt).reduce(Math.max(_,_))
+malemaxsal: Int = 100000        
+
+female max sal:
+---------------                                                
+scala> val femalemaxsal = females.map(x => x.split(",")(2).toInt).reduce(Math.max(_,_))
+femalemaxsal: Int = 80000
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -1,0 +1,41 @@
+In running local:
+-----------------
+scala> val sqlContext = new org.apache.spark.sql.hive.HiveContext(sc)
+warning: there was one deprecation warning; re-run with -deprecation for details
+sqlContext: org.apache.spark.sql.hive.HiveContext = org.apache.spark.sql.hive.HiveContext@637b1b46
+
+
+scala> val sqlc = sqlContext.sql("create database spark")
+org.apache.spark.sql.AnalysisException: org.apache.hadoop.hive.metastore.api.AlreadyExistsException: Database spark already exists;
+  at org.apache.spark.sql.hive.HiveExternalCatalog.withClient(HiveExternalCatalog.scala:106)
+  at org.apache.spark.sql.hive.HiveExternalCatalog.createDatabase(HiveExternalCatalog.scala:146)
+  at org.apache.spark.sql.catalyst.catalog.SessionCatalog.createDatabase(SessionCatalog.scala:163)
+  at org.apache.spark.sql.execution.command.CreateDatabaseCommand.run(ddl.scala:65)
+  at org.apache.spark.sql.execution.command.ExecutedCommandExec.sideEffectResult$lzycompute(commands.scala:58)
+
+scala> val sqlc = sqlContext.sql("create database vamshi21")
+18/09/13 07:47:10 WARN ObjectStore: Failed to get database vamshi21, returning NoSuchObjectException
+sqlc: org.apache.spark.sql.DataFrame = []
+
+scala> val sqlc = sqlContext.sql("use vamshi21")
+sqlc: org.apache.spark.sql.DataFrame = []
+
+
+scala> val sqlc = sqlContext.sql("create table raw(id int,name string)")
+18/09/13 07:51:48 WARN HiveMetaStore: Location: file:/home/gopalkrishna/spark-warehouse/vamshi21.db/raw specified for non-external table:raw
+sqlc: org.apache.spark.sql.DataFrame = []
+
+scala> val sqlc = sqlContext.sql("insert into table raw values(101,'saikrishna')")
+sqlc: org.apache.spark.sql.DataFrame = []
+
+
+when i copy hive-site.xml to spark/conf , i can't run spark properly, it showing below error
+
+scala> import org.apache.spark.SparkContext
+import org.apache.spark.SparkContext
+
+scala> val sqlContext = new org.apache.spark.sql.hive.HiveContext(sc)
+<console>:18: error: not found: value sc
+       val sqlContext = new org.apache.spark.sql.hive.HiveContext(sc)
+                                                                  ^
+

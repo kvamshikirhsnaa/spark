@@ -1,0 +1,223 @@
+spark streaming:
+----------------
+we need to start multiple threads for spark streaming.
+
+no.of threads = no.of soureces+1.
+
+WORDCOUNT EX:
+-------------
+staring 2 threads:
+------------------
+gopalkrishna@ubuntu:~$ spark-shell --master local[2]
+
+scala> import org.apache.spark._
+import org.apache.spark._
+
+scala> import org.apache.spark.streaming._
+import org.apache.spark.streaming._
+
+scala> import org.apache.spark.streaming.StreamingContext
+import org.apache.spark.streaming.StreamingContext
+
+scala> val ssc = new StreamingContext(sc, Seconds(10))
+ssc: org.apache.spark.streaming.StreamingContext = org.apache.spark.streaming.StreamingContext@5a3f6976
+
+scala> val ds1 = ssc.socketTextStream("localhost",9999)
+ds1: org.apache.spark.streaming.dstream.ReceiverInputDStream[String] = org.apache.spark.streaming.dstream.SocketInputDStream@6066dcb2
+
+NOTE: this is root datastream. we are getting data from port 9999.
+      for every 10 seconds how much data generated will be buffered as 1 RDD,
+      that RDD will transfored to the next thread which is spark core to process the RDD.
+
+scala> val ds2 = ds1.flatMap(x => x.split(" "))
+ds2: org.apache.spark.streaming.dstream.DStream[String] = org.apache.spark.streaming.dstream.FlatMappedDStream@ffb1ad4
+
+NOTE: on dstream if we apply transformation/filter result will be dstream only.
+      dsstream use most of all RDD api operations and it has some own features.
+
+scala> val ds3 = ds2.map(x => (x,1))
+ds3: org.apache.spark.streaming.dstream.DStream[(String, Int)] = org.apache.spark.streaming.dstream.MappedDStream@1066e3c
+
+scala> val res = ds3.reduceByKey(_+_)
+res: org.apache.spark.streaming.dstream.DStream[(String, Int)] = org.apache.spark.streaming.dstream.ShuffledDStream@37e9a3a9
+
+scala> res.print()
+
+NOTE: it will print results in console,
+      we can save results into HDFS or hive or hbase or kafka topics or any other nosql database like mongodb,cassandra.
+      we can store results into multiple destinations at same time.
+
+
+scala> ssc.start
+
+NOTE: when we triggered start operation flow will start from execution from root dsstream(ds1),
+      the data will be collected from source path and generate RDD for every given interval period time.
+      the generated RDD will be processed by spark core engine.and the results willbe stored given destination paths.
+
+gopalkrishna@ubuntu:~$ nc -lk 9999
+hi how are you
+what are you doing
+hi i am good
+how are you and
+what are you doing
+
+NOTE: to start port 9999, here nc means netcat.we can write as whatever we want,
+      the data will be streamed to sparkstreameing context.
+
+
+Time: 1537270360000 ms
+-------------------------------------------
+(are,4)
+(am,1)
+(how,2)
+(what,2)
+(you,4)
+(hi,2)
+(i,1)
+(good,1)
+(doing,2)
+(and,1)
+
+gopalkrishna@ubuntu:~$ nc -lk 9999
+hi how are you
+what are you doing
+hi i am good
+how are you and
+what are you doing
+hi
+helllo
+hello' 
+hello
+hi
+how are you
+how are you
+hello 
+hello1
+
+
+Time: 1537270380000 ms
+-------------------------------------------
+(hello,1)
+(hello',1)
+
+18/09/18 04:33:04 WARN RandomBlockReplicationPolicy: Expecting 1 replicas with only 0 peer/s.
+18/09/18 04:33:04 WARN BlockManager: Block input-0-1537270384000 replicated to only 0 peer(s) instead of 1 peers
+18/09/18 04:33:09 WARN RandomBlockReplicationPolicy: Expecting 1 replicas with only 0 peer/s.
+18/09/18 04:33:09 WARN BlockManager: Block input-0-1537270389400 replicated to only 0 peer(s) instead of 1 peers
+-------------------------------------------                                     
+Time: 1537270390000 ms
+-------------------------------------------
+(are,1)
+(how,1)
+(you,1)
+(hi,1)
+
+18/09/18 04:33:14 WARN RandomBlockReplicationPolicy: Expecting 1 replicas with only 0 peer/s.
+18/09/18 04:33:14 WARN BlockManager: Block input-0-1537270394000 replicated to only 0 peer(s) instead of 1 peers
+18/09/18 04:33:16 WARN RandomBlockReplicationPolicy: Expecting 1 replicas with only 0 peer/s.
+18/09/18 04:33:16 WARN BlockManager: Block input-0-1537270396400 replicated to only 0 peer(s) instead of 1 peers
+18/09/18 04:33:19 WARN RandomBlockReplicationPolicy: Expecting 1 replicas with only 0 peer/s.
+18/09/18 04:33:19 WARN BlockManager: Block input-0-1537270399600 replicated to only 0 peer(s) instead of 1 peers
+-------------------------------------------
+Time: 1537270400000 ms
+-------------------------------------------
+(are,1)
+(how,1)
+(hello,1)
+(you,1)
+(hello1,1)
+
+-------------------------------------------
+Time: 1537270410000 ms
+-------------------------------------------
+
+-------------------------------------------
+Time: 1537270420000 ms
+-------------------------------------------
+
+-------------------------------------------
+Time: 1537270430000 ms
+-------------------------------------------
+
+-------------------------------------------
+Time: 1537270440000 ms
+-------------------------------------------
+
+-------------------------------------------
+Time: 1537270450000 ms
+-------------------------------------------
+
+-------------------------------------------
+Time: 1537270460000 ms
+-------------------------------------------
+
+-------------------------------------------
+Time: 1537270470000 ms
+-------------------------------------------
+
+-------------------------------------------
+Time: 1537270480000 ms
+-------------------------------------------
+
+-------------------------------------------
+Time: 1537270490000 ms
+--------------------------------
+
+
+
+gopalkrishna@ubuntu:~$ nc -lk 9999
+hi how are you
+what are you doing
+hi i am good
+how are you and
+what are you doing
+hi
+helllo
+hello' 
+hello
+hi
+how are you
+how are you
+hello 
+hello1
+hi ra
+em chestunnav
+tinnava?
+
+
+
+
+-------------------------------------------
+(hi,1)
+(ra,1)
+
+18/09/18 04:35:43 WARN RandomBlockReplicationPolicy: Expecting 1 replicas with only 0 peer/s.
+18/09/18 04:35:43 WARN BlockManager: Block input-0-1537270542800 replicated to only 0 peer(s) instead of 1 peers
+18/09/18 04:35:47 WARN RandomBlockReplicationPolicy: Expecting 1 replicas with only 0 peer/s.
+18/09/18 04:35:47 WARN BlockManager: Block input-0-1537270547400 replicated to only 0 peer(s) instead of 1 peers
+-------------------------------------------                                     
+Time: 1537270550000 ms
+-------------------------------------------
+(em,1)
+(tinnava?,1)
+(chestunnav,1)
+
+NOTE: it will generate every 10seconds results output.
+      it will wait for data even if new data is not coming it will generate empty batch like below.
+
+-------------------------------------------
+Time: 1537270620000 ms
+-------------------------------------------
+
+-------------------------------------------
+Time: 1537270630000 ms
+-------------------------------------------
+
+-------------------------------------------
+Time: 1537270640000 ms
+-------------------------------------------
+
+-------------------------------------------
+Time: 1537270650000 ms
+-------------------------------------------
+

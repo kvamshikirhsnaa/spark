@@ -1,0 +1,200 @@
+cartesian:
+----------
+Ex:
+---
+scala> val data = sc.textFile("sparklab/emply1.txt")
+data: org.apache.spark.rdd.RDD[String] = sparklab/emply1.txt MapPartitionsRDD[2] at textFile at <console>:24
+
+scala> data.collect.foreach(println)
+107,tulasi,50000,F,11                                                           
+108,gouthami,70000,F,12
+109,prakash,60000,M,13
+110,narahari,80000,M,12
+111,praveen,70000,M,13
+112,janaki,40000,F,12
+101,aishwarya,80000,F,12
+102,ganga,70000,F,11
+103,vamshikrishna,90000,M,13
+104,saikrishna,100000,M,12
+105,aravindswamy,80000,M,11
+106,archana,60000,F,13
+
+scala> val dnosal = data.map{x =>
+     |   val w = x.split(",")
+     |   val dno = w(4).toInt
+     |   val sal = w(2).toInt
+     |   (dno,sal)
+     | }
+dnosal: org.apache.spark.rdd.RDD[(Int, Int)] = MapPartitionsRDD[3] at map at <console>:26
+
+scala> dnosal.collect.foreach(println)
+(11,50000)
+(12,70000)
+(13,60000)
+(12,80000)
+(13,70000)
+(12,40000)
+(12,80000)
+(11,70000)
+(13,90000)
+(12,100000)
+(11,80000)
+(13,60000)
+
+scala> val tot = dnosal.reduceByKey(_+_)
+tot: org.apache.spark.rdd.RDD[(Int, Int)] = ShuffledRDD[4] at reduceByKey at <console>:28
+
+scala> tot.collect.foreach(println)
+(12,370000)                                                                     
+(13,280000)
+(11,200000)
+
+copy RDD tot results into new RDD:
+----------------------------------
+scala> val tot1 = tot
+tot1: org.apache.spark.rdd.RDD[(Int, Int)] = ShuffledRDD[4] at reduceByKey at <console>:28
+
+scala> tot1.collect.foreach(println)
+(12,370000)
+(13,280000)
+(11,200000)
+
+cross joinig tot,to1:
+---------------------
+scala> val cr = tot.cartesian(tot1)
+cr: org.apache.spark.rdd.RDD[((Int, Int), (Int, Int))] = CartesianRDD[5] at cartesian at <console>:32
+
+scala> cr.collect.foreach(println)
+((12,370000),(12,370000))
+((12,370000),(13,280000))
+((12,370000),(11,200000))
+((13,280000),(12,370000))
+((11,200000),(12,370000))
+((13,280000),(13,280000))
+((13,280000),(11,200000))
+((11,200000),(13,280000))
+((11,200000),(11,200000))
+
+scala> val cr2 = cr.sortByKey()
+cr2: org.apache.spark.rdd.RDD[((Int, Int), (Int, Int))] = ShuffledRDD[21] at sortByKey at <console>:34
+
+scala> cr2.collect.foreach(println)
+((11,200000),(12,370000))
+((11,200000),(13,280000))
+((11,200000),(11,200000))
+((12,370000),(13,280000))
+((12,370000),(11,200000))
+((12,370000),(12,370000))
+((13,280000),(13,280000))
+((13,280000),(11,200000))
+((13,280000),(12,370000))
+
+
+converting into single tuple:
+-----------------------------
+scala> val cr3 = cr2.map{x =>
+     |    val t1 = x._1
+     |    val t2 = x._2
+     |    val dno1 = t1._1
+     |    val sal1 = t1._2
+     |    val dno2 = t2._1
+     |    val sal2 = t2._2
+     |    (dno1,dno2,sal1,sal2)
+     | }
+cr3: org.apache.spark.rdd.RDD[(Int, Int, Int, Int)] = MapPartitionsRDD[22] at map at <console>:36
+
+scala> cr3.collect.foreach(println)
+(11,13,200000,280000)
+(11,11,200000,200000)
+(11,12,200000,370000)
+(12,12,370000,370000)
+(12,13,370000,280000)
+(12,11,370000,200000)
+(13,13,280000,280000)
+(13,11,280000,200000)
+(13,12,280000,370000)
+
+scala> val cr4 = cr3.filter(x => x._1 != x._2)
+cr4: org.apache.spark.rdd.RDD[(Int, Int, Int, Int)] = MapPartitionsRDD[23] at filter at <console>:38
+
+scala> cr4.collect.foreach(println)
+(11,13,200000,280000)
+(11,12,200000,370000)
+(12,13,370000,280000)
+(12,11,370000,200000)
+(13,11,280000,200000)
+(13,12,280000,370000)
+
+scala> val cr5 = cr4.filter(x => (x._3>x._4))
+cr5: org.apache.spark.rdd.RDD[(Int, Int, Int, Int)] = MapPartitionsRDD[24] at filter at <console>:40
+
+scala> cr5.collect.foreach(println)
+(12,13,370000,280000)
+(12,11,370000,200000)
+(13,11,280000,200000)
+
+scala> val res = cr5.map(x => (x._1,1))
+res: org.apache.spark.rdd.RDD[(Int, Int)] = MapPartitionsRDD[25] at map at <console>:42
+
+scala> res.collect.foreach(println)
+(12,1)
+(12,1)
+(13,1)
+
+scala> val res1 = res.reduceByKey(_+_)
+res1: org.apache.spark.rdd.RDD[(Int, Int)] = ShuffledRDD[26] at reduceByKey at <console>:44
+
+scala> res1.collect.foreach(println)
+(12,2)
+(13,1)
+
+scala> data.collect.foreach(println)
+107,tulasi,50000,F,11
+108,gouthami,70000,F,12
+109,prakash,60000,M,13
+110,narahari,80000,M,12
+111,praveen,70000,M,13
+112,janaki,40000,F,12
+101,aishwarya,80000,F,12
+102,ganga,70000,F,11
+103,vamshikrishna,90000,M,13
+104,saikrishna,100000,M,12
+105,aravindswamy,80000,M,11
+106,archana,60000,F,13
+
+NOTE: the results are every dept total salaries are compared with each other dept. 
+      and which dept having highest salaries compare to others depts
+
+   11 -->  50000+70000+80000 = 200000
+   12 -->  70000+80000+80000+100000 = 330000
+   13 -->  60000+70000+90000+60000 = 280000
+
+11 dept is least total salary              ----->(so 11 is not in results)
+12 dept has highest total salary than 11,12          ---> 2
+13 dept has highest total salary than 11 but not 112 ---> 1
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

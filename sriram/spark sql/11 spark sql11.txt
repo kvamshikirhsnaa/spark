@@ -1,0 +1,221 @@
+Ex:
+---
+scala> case class samp3(id:Int,name:String,sal:Int,sex:String,dno:Int)
+defined class samp3
+
+scala> case class samp3(id:Int,name:String,sal:Int,sex:String,dno:Int)
+defined class samp3
+
+scala> val data = sc.textFile("sparklab/emply1.txt")
+data: org.apache.spark.rdd.RDD[String] = sparklab/emply1.txt MapPartitionsRDD[48] at textFile at <console>:24
+
+scala> data.collect
+res33: Array[String] = Array(107,tulasi,50000,F,11, 108,gouthami,70000,F,12, 109,prakash,60000,M,13, 
+110,narahari,80000,M,12, 111,praveen,70000,M,13, 112,janaki,40000,F,12, 101,aishwarya,80000,F,12, 
+102,ganga,70000,F,11, 103,vamshikrishna,90000,M,13, 104,saikrishna,100000,M,12, 105,aravindswamy,80000,M,11, 106,archana,60000,F,13)
+
+scala> val res = data.map{x => 
+     |     val w = x.split(",")
+     |     val id = w(0).toInt
+     |     val name = w(1)
+     |     val sal = w(2).toInt
+     |     val sex = w(3)
+     |     val dno = w(4).toInt
+     |     samp3(id,name,sal,sex,dno)
+     | }
+res: org.apache.spark.rdd.RDD[samp3] = MapPartitionsRDD[49] at map at <console>:28
+
+scala> res.collect.foreach(println)
+samp3(107,tulasi,50000,F,11)
+samp3(108,gouthami,70000,F,12)
+samp3(109,prakash,60000,M,13)
+samp3(110,narahari,80000,M,12)
+samp3(111,praveen,70000,M,13)
+samp3(112,janaki,40000,F,12)
+samp3(101,aishwarya,80000,F,12)
+samp3(102,ganga,70000,F,11)
+samp3(103,vamshikrishna,90000,M,13)
+samp3(104,saikrishna,100000,M,12)
+samp3(105,aravindswamy,80000,M,11)
+samp3(106,archana,60000,F,13)
+
+scala> val df3 = res.toDF
+df3: org.apache.spark.sql.DataFrame = [id: int, name: string ... 3 more fields]
+
+scala> df3.show()
++---+-------------+------+---+---+
+| id|         name|   sal|sex|dno|
++---+-------------+------+---+---+
+|107|       tulasi| 50000|  F| 11|
+|108|     gouthami| 70000|  F| 12|
+|109|      prakash| 60000|  M| 13|
+|110|     narahari| 80000|  M| 12|
+|111|      praveen| 70000|  M| 13|
+|112|       janaki| 40000|  F| 12|
+|101|    aishwarya| 80000|  F| 12|
+|102|        ganga| 70000|  F| 11|
+|103|vamshikrishna| 90000|  M| 13|
+|104|   saikrishna|100000|  M| 12|
+|105| aravindswamy| 80000|  M| 11|
+|106|      archana| 60000|  F| 13|
++---+-------------+------+---+---+
+
+applying select,filter,groupBy statements on df3 DataFrame:
+-----------------------------------------------------------
+scala> df3.select("sex","sal").show()
++---+------+
+|sex|   sal|
++---+------+
+|  F| 50000|
+|  F| 70000|
+|  M| 60000|
+|  M| 80000|
+|  M| 70000|
+|  F| 40000|
+|  F| 80000|
+|  F| 70000|
+|  M| 90000|
+|  M|100000|
+|  M| 80000|
+|  F| 60000|
++---+------+
+
+scala> df3.filter(df3("sal")>=70000).show()
++---+-------------+------+---+---+
+| id|         name|   sal|sex|dno|
++---+-------------+------+---+---+
+|108|     gouthami| 70000|  F| 12|
+|110|     narahari| 80000|  M| 12|
+|111|      praveen| 70000|  M| 13|
+|101|    aishwarya| 80000|  F| 12|
+|102|        ganga| 70000|  F| 11|
+|103|vamshikrishna| 90000|  M| 13|
+|104|   saikrishna|100000|  M| 12|
+|105| aravindswamy| 80000|  M| 11|
++---+-------------+------+---+---+
+
+scala> val df4 = df3.select(df3("id"),df3("name"),df3("sal")+10000,df3("sex"),df3("dno"))
+df4: org.apache.spark.sql.DataFrame = [id: int, name: string ... 3 more fields]
+
+scala> df4.show()
++---+-------------+-------------+---+---+
+| id|         name|(sal + 10000)|sex|dno|
++---+-------------+-------------+---+---+
+|107|       tulasi|        60000|  F| 11|
+|108|     gouthami|        80000|  F| 12|
+|109|      prakash|        70000|  M| 13|
+|110|     narahari|        90000|  M| 12|
+|111|      praveen|        80000|  M| 13|
+|112|       janaki|        50000|  F| 12|
+|101|    aishwarya|        90000|  F| 12|
+|102|        ganga|        80000|  F| 11|
+|103|vamshikrishna|       100000|  M| 13|
+|104|   saikrishna|       110000|  M| 12|
+|105| aravindswamy|        90000|  M| 11|
+|106|      archana|        70000|  F| 13|
++---+-------------+-------------+---+---+
+
+scala> df4.groupBy("sex").count.show()
++---+-----+                                                                     
+|sex|count|
++---+-----+
+|  F|    6|
+|  M|    6|
++---+-----+
+
+scala> df3.groupBy("sex").sum("sal").show()
++---+--------+
+|sex|sum(sal)|
++---+--------+
+|  F|  370000|
+|  M|  480000|
++---+--------+
+
+scala> df3.groupBy("sex").agg(sum("sal")).show()
++---+--------+
+|sex|sum(sal)|
++---+--------+
+|  F|  370000|
+|  M|  480000|
++---+--------+
+
+scala> df3.groupBy("sex").agg(max("sal")).show()
++---+--------+
+|sex|max(sal)|
++---+--------+
+|  F|   80000|
+|  M|  100000|
++---+--------+
+
+scala> df3.groupBy("sex").agg(min("sal")).show()
++---+--------+
+|sex|min(sal)|
++---+--------+
+|  F|   40000|
+|  M|   60000|
++---+--------+
+
+scala> df3.groupBy("dno").agg(sum("sal")).show()
++---+--------+                                                                  
+|dno|sum(sal)|
++---+--------+
+| 12|  370000|
+| 13|  280000|
+| 11|  200000|
++---+--------+
+
+scala> df3.groupBy("dno").agg(sum("sal"),max("sal"),min("sal"),mean("sal"),avg("sal")).show()
++---+--------+--------+--------+-----------------+-----------------+            
+|dno|sum(sal)|max(sal)|min(sal)|         avg(sal)|         avg(sal)|
++---+--------+--------+--------+-----------------+-----------------+
+| 12|  370000|  100000|   40000|          74000.0|          74000.0|
+| 13|  280000|   90000|   60000|          70000.0|          70000.0|
+| 11|  200000|   80000|   50000|66666.66666666667|66666.66666666667|
++---+--------+--------+--------+-----------------+-----------------+
+
+scala> df3.groupBy("dno").agg(mean("sal")).show()
++---+-----------------+
+|dno|         avg(sal)|
++---+-----------------+
+| 12|          74000.0|
+| 13|          70000.0|
+| 11|66666.66666666667|
++---+-----------------+
+
+
+scala> df3.groupBy("dno").agg(avg("sal"),count("sal")).show()
++---+-----------------+----------+
+|dno|         avg(sal)|count(sal)|
++---+-----------------+----------+
+| 12|          74000.0|         5|
+| 13|          70000.0|         4|
+| 11|66666.66666666667|         3|
++---+-----------------+----------+
+
+scala> df3.groupBy("dno","sex").agg(sum("sal"),max("sal"),count("sal")).show()
++---+---+--------+--------+----------+
+|dno|sex|sum(sal)|max(sal)|count(sal)|
++---+---+--------+--------+----------+
+| 12|  F|  190000|   80000|         3|
+| 11|  F|  120000|   70000|         2|
+| 12|  M|  180000|  100000|         2|
+| 11|  M|   80000|   80000|         1|
+| 13|  M|  220000|   90000|         3|
+| 13|  F|   60000|   60000|         1|
++---+---+--------+--------+----------+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

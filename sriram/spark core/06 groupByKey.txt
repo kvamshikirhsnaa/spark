@@ -1,0 +1,192 @@
+reduceByKey():
+-------------
+scala has reduce() feature. but in spark we don't have reduce feature.
+In spark we have reduceByKey(), groupByKey() features.
+when we apply reduceByKey(), it perform cumulative operation on values
+
+Ex:
+--- 
+val x = ((10,100),(11,200),(10,150),(11,100),(10,50),(11,300))
+
+Input should be in key value pairs. 
+
+scala> x.reduceByKey((a,b) => (a+b))
+
+ 10 --> 100+150+50 ---> first 2 values(100,150) acts as a,b and adds now results 250 acts as a and next 
+                         value(50) acts as b  again applies a+b,like this.....  
+  
+ 11 --> 200+100+300 --->  first 2 values(200,100) acts as a,b and adds now results 3000 acts as a and next 
+                           value(300) acts as b  again applies a+b,like this.....
+
+
+this is called cumulative operation.2 values results will act as new value and applies cumulative.
+not only adddition all arithmetic operations,max,min everything performs same like this.
+
+groupByKey():
+-------------
+groupByKey has  feature we can do multiple aggreagations.
+when we apply groupByKey(),for every key, all related values formed as compactBuffer.
+this compactBuffer is equivalent to iterator of mapreduce.
+on this compactBuffer we can apply multiple aggreagations.
+
+Ex:
+---
+[edureka_334602@ip-20-0-41-202 ~]$ hadoop fs -cat sparklab/emply1.txt
+107,tulasi,50000,F,11
+108,gouthami,70000,F,12
+109,prakash,60000,M,13
+110,narahari,80000,M,12
+111,praveen,70000,M,13
+112,janaki,40000,F,12
+101,aishwarya,80000,F,12
+102,ganga,70000,F,11
+103,vamshikrishna,90000,M,13
+104,saikrishna,100000,M,12
+105,aravindswamy,80000,M,11
+106,archana,60000,F,13
+
+scala> val data = sc.textFile("sparklab/emply1.txt")
+data: org.apache.spark.rdd.RDD[String] = sparklab/emply1.txt MapPartitionsRDD[1] at textFile at <console>:24
+
+scala> data.collect
+res0: Array[String] = Array(107,tulasi,50000,F,11, 108,gouthami,70000,F,12, 109,prakash,60000,M,13, 
+110,narahari,80000,M,12, 111,praveen,70000,M,13, 112,janaki,40000,F,12, 101,aishwarya,80000,F,12, 
+102,ganga,70000,F,11, 103,vamshikrishna,90000,M,13, 104,saikrishna,100000,M,12, 105,aravindswamy,80000,M,11, 106,archana,60000,F,13)
+
+scala> val arr = data.map(x => x.split(","))
+arr: org.apache.spark.rdd.RDD[Array[String]] = MapPartitionsRDD[2] at map at <console>:26
+
+scala> arr.collect
+res1: Array[Array[String]] = Array(Array(107, tulasi, 50000, F, 11), Array(108, gouthami, 70000, F, 12), 
+Array(109, prakash, 60000, M, 13), Array(110, narahari, 80000, M, 12), Array(111, praveen, 70000, M, 13), 
+Array(112, janaki, 40000, F, 12), Array(101, aishwarya, 80000, F, 12), Array(102, ganga, 70000, F, 11), 
+Array(103, vamshikrishna, 90000, M, 13), Array(104, saikrishna, 100000, M, 12), Array(105, aravindswamy, 80000, M, 11), Array(106, archana, 60000, F, 13))
+
+scala> val pairs = arr.map(x => (x(3),x(2).toInt))
+pairs: org.apache.spark.rdd.RDD[(String, Int)] = MapPartitionsRDD[4] at map at <console>:28
+
+scala> pairs.collect.foreach(println)
+(F,50000)
+(F,70000)
+(M,60000)
+(M,80000)
+(M,70000)
+(F,40000)
+(F,80000)
+(F,70000)
+(M,90000)
+(M,100000)
+(M,80000)
+(F,60000)
+
+scala> val sum = pairs.reduceByKey(_+_)
+sum: org.apache.spark.rdd.RDD[(String, Int)] = ShuffledRDD[6] at reduceByKey at <console>:30
+
+scala> sum.collect
+res2: Array[(String, Int)] = Array((F,370000), (M,480000))
+
+
+scala> val grp = pairs.groupByKey()
+grp: org.apache.spark.rdd.RDD[(String, Iterable[Int])] = ShuffledRDD[5] at groupByKey at <console>:30
+
+scala> grp.collect
+res3: Array[(String, Iterable[Int])] = Array((F,CompactBuffer(70000, 60000, 50000, 70000, 40000, 80000)), 
+(M,CompactBuffer(60000, 80000, 70000, 90000, 100000, 80000)))
+
+scala> grp.collect.foreach(println)
+(F,CompactBuffer(70000, 60000, 50000, 70000, 40000, 80000))
+(M,CompactBuffer(60000, 80000, 70000, 90000, 100000, 80000))
+
+
+NOTE: see difference of reduceByKey(),groupByKey() results. 
+      if we apply reduceByKey, we can apply single aggreagation on pairs at  a time.
+      if we apply groupByKey, the result will be compactBuffer, on compactBuffer we can apply
+      multiple aggreagations at a time.
+      reduceByKey is very good for single aggragations and it's much more better than groupByKey
+      but for multiple aggregations we have to use groupByKey().
+
+
+Applying multiple aggreagations on grp results:
+-----------------------------------------------
+scala> grp.map(x => x._1).collect
+res0: Array[String] = Array(F, M)
+
+scala> grp.map(x => x._2).collect
+res1: Array[Iterable[Int]] = Array(CompactBuffer(50000, 70000, 40000, 80000, 70000, 60000), 
+CompactBuffer(90000, 100000, 80000, 60000, 80000, 70000))
+
+scala> val sex = grp.map(x => x._1)
+sex: org.apache.spark.rdd.RDD[String] = MapPartitionsRDD[8] at map at <console>:32
+
+scala> val cb = grp.map(x => x._2)
+cb: org.apache.spark.rdd.RDD[Iterable[Int]] = MapPartitionsRDD[9] at map at <console>:32
+
+scala> cb.collect
+res2: Array[Iterable[Int]] = Array(CompactBuffer(50000, 70000, 40000, 80000, 70000, 60000), 
+CompactBuffer(90000, 100000, 80000, 60000, 80000, 70000))
+
+scala> val sum1 = cb.map(x=>x.sum)
+sum1: org.apache.spark.rdd.RDD[Int] = MapPartitionsRDD[12] at map at <console>:34
+
+scala> sum1.collect
+res6: Array[Int] = Array(370000, 480000)
+
+scala> val max = cb.map(x=>x.max)
+max: org.apache.spark.rdd.RDD[Int] = MapPartitionsRDD[15] at map at <console>:34
+
+scala> max.collect
+res7: Array[Int] = Array(80000, 100000)
+
+scala> val min = cb.map(x=> x.min)
+min: org.apache.spark.rdd.RDD[Int] = MapPartitionsRDD[16] at map at <console>:34
+
+scala> min.collect
+res8: Array[Int] = Array(40000, 60000)
+
+scala> val cnt = cb.map(x => x.size)
+cnt: org.apache.spark.rdd.RDD[Int] = MapPartitionsRDD[17] at map at <console>:34
+
+scala> cnt.collect
+res9: Array[Int] = Array(6, 6)
+
+scala> val avg= cb.map(x => x.sum/x.size)
+avg: org.apache.spark.rdd.RDD[Int] = MapPartitionsRDD[18] at map at <console>:34
+
+scala> avg.collect
+res10: Array[Int] = Array(61666, 80000)
+
+NOTE: here we are applying every transformation seperately. on groupByKey results,
+      we can apply multiple aggreagations at singel time.
+      but reduceByKey results won't support for multiple aggreagtions.
+
+scala> grp.collect
+res13: Array[(String, Iterable[Int])] = Array((F,CompactBuffer(50000, 70000, 40000, 80000, 70000, 60000)), 
+(M,CompactBuffer(90000, 100000, 80000, 60000, 80000, 70000)))
+
+scala> val res = grp.map{ x =>
+     |    val sex = x._1
+     |    val cb = x._2
+     |    val sum = cb.sum
+     |    val cnt = cb.size
+     |    val avg = sum/cnt
+     |    val max = cb.max
+     |    val min = cb.min
+     |    (sex,sum,cnt,avg,max,min)
+     | }
+res: org.apache.spark.rdd.RDD[(String, Int, Int, Int, Int, Int)] = MapPartitionsRDD[24] at map at <console>:46
+ 
+scala> res.collect.foreach(println)
+(F,370000,6,61666,80000,40000)
+(M,480000,6,80000,100000,60000)
+
+NOTE: above results are in tuple convert them into String and save in Hdfs.
+
+scala> val tres = res.map(x => x._1+" "+x._2+" "+x._3+" "+x._4+" "+x._5+" "+x._6)
+tres: org.apache.spark.rdd.RDD[String] = MapPartitionsRDD[6] at map at <console>:34
+
+scala> tres.collect.foreach(println)
+F 370000 6 61666 80000 40000                                                    
+M 480000 6 80000 100000 60000
+
+scala> tres.saveAsTextFile("sparklab/groupBy")
+

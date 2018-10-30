@@ -1,0 +1,146 @@
+Joins:
+------
+[edureka_334602@ip-20-0-41-190 ~]$ hadoop fs -cat sparklab/emply1.txt
+107,tulasi,50000,F,11
+108,gouthami,70000,F,12
+109,prakash,60000,M,13
+110,narahari,80000,M,12
+111,praveen,70000,M,13
+112,janaki,40000,F,12
+101,aishwarya,80000,F,12
+102,ganga,70000,F,11
+103,vamshikrishna,90000,M,13
+104,saikrishna,100000,M,12
+105,aravindswamy,80000,M,11
+106,archana,60000,F,13
+
+scala> val data = sc.textFile("sparklab/emply1.txt")
+data: org.apache.spark.rdd.RDD[String] = sparklab/emply1.txt MapPartitionsRDD[1] at textFile at <console>:24
+
+scala> data.collect
+res0: Array[String] = Array(107,tulasi,50000,F,11, 108,gouthami,70000,F,12, 109,prakash,60000,M,13, 
+110,narahari,80000,M,12, 111,praveen,70000,M,13, 112,janaki,40000,F,12, 101,aishwarya,80000,F,12, 
+102,ganga,70000,F,11, 103,vamshikrishna,90000,M,13, 104,saikrishna,100000,M,12, 105,aravindswamy,80000,M,11, 106,archana,60000,F,13)
+
+scala> val dnosal = data.map{x => 
+     |    val w = x.split(",")
+     |    val dno = w(4).toInt
+     |    val sal = w(2).toInt
+     |    (dno,sal)
+     | }
+dnosal: org.apache.spark.rdd.RDD[(Int, Int)] = MapPartitionsRDD[2] at map at <console>:26
+
+scala> dnosal.collect.foreach(println)
+(11,50000)                                                                      
+(12,70000)
+(13,60000)
+(12,80000)
+(13,70000)
+(12,40000)
+(12,80000)
+(11,70000)
+(13,90000)
+(12,100000)
+(11,80000)
+(13,60000)
+
+scala> val grp = dnosal.groupByKey()
+grp: org.apache.spark.rdd.RDD[(Int, Iterable[Int])] = ShuffledRDD[3] at groupByKey at <console>:28
+
+scala> grp.collect.foreach(println)
+(12,CompactBuffer(100000, 70000, 80000, 40000, 80000))
+(13,CompactBuffer(60000, 70000, 90000, 60000))
+(11,CompactBuffer(50000, 70000, 80000))
+
+scala> val avg = grp.map{x =>
+     |    val dno = x._1
+     |    val cb = x._2
+     |    val tot = cb.sum
+     |    val cnt = cb.size
+     |    val avgsal = tot/cnt
+     |    (dno,avgsal)
+     | }
+avg: org.apache.spark.rdd.RDD[(Int, Int)] = MapPartitionsRDD[4] at map at <console>:30
+
+scala> avg.collect.foreach(println)
+(12,74000)
+(13,70000)
+(11,66666)
+
+scala> val dno = data.map{x =>
+     |           val w = x.split(",")
+     |           val dno = w(4).toInt
+     |           val id = w(0).toInt
+     |           val name = w(1)
+     |           val sal = w(2).toInt
+     |           val sex = w(3)
+     |           (dno,(id,name,sal,sex))
+     |         }
+dno: org.apache.spark.rdd.RDD[(Int, (Int, String, Int, String))] = MapPartitionsRDD[5] at map at <console>:26
+
+scala> val j = dno.join(avg)
+j: org.apache.spark.rdd.RDD[(Int, ((Int, String, Int, String), Int))] = MapPartitionsRDD[8] at join at <console>:34
+
+scala> j.collect.foreach(println)
+(12,((104,saikrishna,100000,M),74000))
+(12,((108,gouthami,70000,F),74000))
+(12,((110,narahari,80000,M),74000))
+(12,((112,janaki,40000,F),74000))
+(12,((101,aishwarya,80000,F),74000))
+(13,((109,prakash,60000,M),70000))
+(13,((111,praveen,70000,M),70000))
+(13,((103,vamshikrishna,90000,M),70000))
+(13,((106,archana,60000,F),70000))
+(11,((107,tulasi,50000,F),66666))
+(11,((102,ganga,70000,F),66666))
+(11,((105,aravindswamy,80000,M),66666))
+
+scala> val res = j.map{x => 
+     |    val dno = x._1
+     |    val e = x._2._1
+     |    val id = e._1
+     |    val name = e._2
+     |    val sal = e._3
+     |    val sex = e._4
+     |    val avg = x._2._2
+     |    (id,name,sal,avg,sex,dno)
+     | }
+res: org.apache.spark.rdd.RDD[(Int, String, Int, Int, String, Int)] = MapPartitionsRDD[11] at map at <console>:36
+
+scala> res.collect.foreach(println)
+(104,saikrishna,100000,74000,M,12)
+(108,gouthami,70000,74000,F,12)
+(110,narahari,80000,74000,M,12)
+(112,janaki,40000,74000,F,12)
+(101,aishwarya,80000,74000,F,12)
+(109,prakash,60000,70000,M,13)
+(111,praveen,70000,70000,M,13)
+(103,vamshikrishna,90000,70000,M,13)
+(106,archana,60000,70000,F,13)
+(107,tulasi,50000,66666,F,11)
+(102,ganga,70000,66666,F,11)
+(105,aravindswamy,80000,66666,M,11)
+
+scala> val deptsal = res.filter(x => (x._3 >= x._4))
+deptsal: org.apache.spark.rdd.RDD[(Int, String, Int, Int, String, Int)] = MapPartitionsRDD[12] at filter at <console>:38
+
+scala> deptsal.collect.foreach(println)
+(104,saikrishna,100000,74000,M,12)
+(110,narahari,80000,74000,M,12)
+(101,aishwarya,80000,74000,F,12)
+(111,praveen,70000,70000,M,13)
+(103,vamshikrishna,90000,70000,M,13)
+(102,ganga,70000,66666,F,11)
+(105,aravindswamy,80000,66666,M,11)
+
+
+
+
+
+
+
+
+
+
+
+

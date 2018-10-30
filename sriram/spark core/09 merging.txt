@@ -1,0 +1,92 @@
+merging:
+--------
+Ex1:
+----
+scala> val l1 = List(10,30,40,50,60)
+l1: List[Int] = List(10, 30, 40, 50, 60)
+
+scala> val l2 = List(20,40,90,70,80)
+l2: List[Int] = List(20, 40, 90, 70, 80)
+
+scala> val r1 = sc.parallelize(l1)
+r1: org.apache.spark.rdd.RDD[Int] = ParallelCollectionRDD[0] at parallelize at <console>:26
+
+scala> val r2 = sc.parallelize(l2)
+r2: org.apache.spark.rdd.RDD[Int] = ParallelCollectionRDD[1] at parallelize at <console>:26
+
+scala> r1.collect
+res0: Array[Int] = Array(10, 30, 40, 50, 60)                                    
+
+scala> r2.collect
+res1: Array[Int] = Array(20, 40, 90, 70, 80)
+
+scala> val res = r1.union(r2)
+res: org.apache.spark.rdd.RDD[Int] = UnionRDD[3] at union at <console>:32
+
+scala> res.collect
+res4: Array[Int] = Array(10, 30, 40, 50, 60, 20, 40, 90, 70, 80)
+
+                             (OR)
+
+scala> val res1 = r1++r2
+res1: org.apache.spark.rdd.RDD[Int] = UnionRDD[4] at $plus$plus at <console>:32
+
+scala> res1.collect
+res5: Array[Int] = Array(10, 30, 40, 50, 60, 20, 40, 90, 70, 80)
+
+Ex2:
+----
+scala> val names1 = List("saikrishna","aravind","prakash")
+names1: List[String] = List(saikrishna, aravind, prakash)
+
+scala> val names2 = List("vamshikrishna","narahari","krishna","ramu")
+names2: List[String] = List(vamshikrishna, narahari, krishna, ramu)
+
+scala> val names3 = List("aravind","venaktesh","anji","saikrishna")
+names3: List[String] = List(aravind, venaktesh, anji, saikrishna)
+
+scala> val names4 = List("mani","ganesh","nagaraj","anji","ramu")
+names4: List[String] = List(mani, ganesh, nagaraj, anji, ramu)
+
+scala> val names = names1++names2++names3++names4
+names: List[String] = List(saikrishna, aravind, prakash, vamshikrishna, narahari, krishna, ramu, 
+aravind, venaktesh, anji, saikrishna, mani, ganesh, nagaraj, anji,ramu)
+
+scala> val name = sc.parallelize(names)
+name: org.apache.spark.rdd.RDD[String] = ParallelCollectionRDD[5] at parallelize at <console>:34
+
+scala> name.collect
+res7: Array[String] = Array(saikrishna, aravind, prakash, vamshikrishna, narahari, krishna, ramu, 
+aravind, venaktesh, anji, saikrishna, mani, ganesh, nagaraj, anji, ramu)
+
+scala> name.count
+res9: Long = 16
+
+Removing Duplicate elements:
+----------------------------
+scala> name.distinct
+res10: org.apache.spark.rdd.RDD[String] = MapPartitionsRDD[8] at distinct at <console>:37
+
+scala> name.distinct.collect
+res11: Array[String] = Array(krishna, ganesh, prakash, vamshikrishna, narahari, nagaraj, anji, 
+mani, saikrishna, ramu, aravind, venaktesh)
+
+scala> val dnames = name.distinct
+dnames: org.apache.spark.rdd.RDD[String] = MapPartitionsRDD[4] at distinct at <console>:36
+
+scala> dnames.collect
+res4: Array[String] = Array(krishna, ganesh, prakash, vamshikrishna, narahari, nagaraj, anji, mani, 
+saikrishna, ramu, aravind, venaktesh)
+
+scala> dnames.count
+res5: Long = 12
+
+NOTE: to remove duplicate use distinct.
+
+
+
+
+
+
+
+

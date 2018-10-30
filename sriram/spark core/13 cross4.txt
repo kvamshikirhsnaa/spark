@@ -1,0 +1,204 @@
+matrimoni:
+----------
+[edureka_334602@ip-20-0-41-202 ~]$ hadoop fs -cat sparklab/matrimoni.txt
+101,ravi,25,60000,M,hyd
+102,rani,23,60000,F,del
+103,mani,32,90000,M,mumbai
+104,manisha,21,80000,F,pune
+105,raju,24,90000,M,blore
+106,kajal,30,100000,F,mumbai
+107,mahesh,28,70000,M,hyd
+108,pooja,26,60000,F,chennai
+109,anitha,29,50000,F,hyd
+110,pavan,32,80000,M,mumbai
+111,shilpa,24,40000,F,blore
+112,nari,27,90000,M,delhi
+
+scala> val data = sc.textFile("sparklab/matrimoni.txt")
+data: org.apache.spark.rdd.RDD[String] = sparklab/matrimoni.txt MapPartitionsRDD[1] at textFile at <console>:24
+
+scala> data.collect
+res0: Array[String] = Array(101,ravi,25,60000,M,hyd, 102,rani,23,60000,F,del, 103,mani,32,90000,M,mumbai, 104,manisha,21,80000,F,pune, 105,raju,24,90000,M,blore, 106,kajal,30,100000,F,mumbai, 107,mahesh,28,70000,M,hyd, 108,pooja,26,60000,F,chennai, 109,anitha,29,50000,F,hyd, 110,pavan,32,80000,M,mumbai, 
+111,shilpa,24,40000,F,blore, 112,nari,27,90000,M,delhi, "")
+
+NOTE: data has some null values first will filter and clean it.
+
+scala> val data1 = data.filter(x => x!="")
+data1: org.apache.spark.rdd.RDD[String] = MapPartitionsRDD[3] at filter at <console>:26
+
+scala> data1.collect
+res2: Array[String] = Array(101,ravi,25,60000,M,hyd, 102,rani,23,60000,F,del, 103,mani,32,90000,M,mumbai, 104,manisha,21,80000,F,pune, 105,raju,24,90000,M,blore, 106,kajal,30,100000,F,mumbai, 107,mahesh,28,70000,M,hyd, 108,pooja,26,60000,F,chennai, 109,anitha,29,50000,F,hyd, 110,pavan,32,80000,M,mumbai, 
+111,shilpa,24,40000,F,blore, 112,nari,27,90000,M,delhi)
+
+NOTE: data1 is cleaned.
+
+scala> def isMale(x:String) = {
+     |     val w = x.split(",")
+     |     val sex = w(4)
+     |     sex == "M"
+     | }
+isMale: (x: String)Boolean
+
+scala> val males = data1.filter(x => isMale(x))
+males: org.apache.spark.rdd.RDD[String] = MapPartitionsRDD[5] at filter at <console>:30
+
+scala> males.collect.foreach(println)
+101,ravi,25,60000,M,hyd                                                         
+103,mani,32,90000,M,mumbai
+105,raju,24,90000,M,blore
+107,mahesh,28,70000,M,hyd
+110,pavan,32,80000,M,mumbai
+112,nari,27,90000,M,delhi
+
+
+scala> val females = data1.filter(x => !isMale(x))
+females: org.apache.spark.rdd.RDD[String] = MapPartitionsRDD[6] at filter at <console>:30
+
+scala> females.collect.foreach(println)
+102,rani,23,60000,F,del
+104,manisha,21,80000,F,pune
+106,kajal,30,100000,F,mumbai
+108,pooja,26,60000,F,chennai
+109,anitha,29,50000,F,hyd
+111,shilpa,24,40000,F,blore
+
+scala> val cr = males.cartesian(females)
+cr: org.apache.spark.rdd.RDD[(String, String)] = CartesianRDD[7] at cartesian at <console>:34
+
+NOTE: total 36 results will come cuz of cartesian(6*6)
+
+scala> cr.take(5).foreach(println)
+(101,ravi,25,60000,M,hyd,102,rani,23,60000,F,del)
+(101,ravi,25,60000,M,hyd,104,manisha,21,80000,F,pune)
+(101,ravi,25,60000,M,hyd,106,kajal,30,100000,F,mumbai)
+(103,mani,32,90000,M,mumbai,102,rani,23,60000,F,del)
+(103,mani,32,90000,M,mumbai,104,manisha,21,80000,F,pune)
+
+NOTE: we can apply cartesian on any type of 2 data sets.
+
+NOTE: now above males and females results are cross joined as cr.
+      cr results are not entire single String, it is Tuple of 2 Strings(males,females)
+
+make it as single Tuple:
+------------------------
+scala> val cr2 = cr.map { x =>
+     |    val m = x._1
+     |    val f = x._2
+     |    val mw = m.split(",")
+     |    val fw = f.split(",")
+     |    val mid = mw(0).toInt
+     |    val fid = fw(0).toInt
+     |    val mname = mw(1)
+     |    val fname = fw(1)
+     |    val mage = mw(2).toInt
+     |    val fage = fw(2).toInt
+     |    val msal = mw(3).toInt
+     |    val fsal = fw(3).toInt
+     |    val msex = mw(4)
+     |    val fsex = fw(4)
+     |    val mloc = mw(5)
+     |    val floc = fw(5)
+     |    (mid,fid,mname,fname,mage,fage,msal,fsal,msex,fsex,mloc,floc)
+     |  }
+cr2: org.apache.spark.rdd.RDD[(Int, Int, String, String, Int, Int, Int, Int, String, String, String, String)] = MapPartitionsRDD[8] at map at <console>:36
+
+scala> cr2.take(5).foreach(println)
+(101,102,ravi,rani,25,23,60000,60000,M,F,hyd,del)
+(101,104,ravi,manisha,25,21,60000,80000,M,F,hyd,pune)
+(101,106,ravi,kajal,25,30,60000,100000,M,F,hyd,mumbai)
+(103,102,mani,rani,32,23,90000,60000,M,F,mumbai,del)
+(103,104,mani,manisha,32,21,90000,80000,M,F,mumbai,pune)
+
+
+Q: filter couples based on males sal should be greater than females, 
+   males age, females age diff should be less than or equal to 4 years(males age should be greater)
+
+scala> val cpls = cr2.filter(x => (x._5>x._6) & (x._5-x._6)<= 4 & (x._7>=x._8))
+cpls: org.apache.spark.rdd.RDD[(Int, Int, String, String, Int, Int, Int, Int, String, String, String, String)] = MapPartitionsRDD[7] at filter at <console>:38
+
+scala> cpls.collect.foreach(println)
+(101,102,ravi,rani,25,23,60000,60000,M,F,hyd,del)
+(105,102,raju,rani,24,23,90000,60000,M,F,blore,del)
+(105,104,raju,manisha,24,21,90000,80000,M,F,blore,pune)
+(101,111,ravi,shilpa,25,24,60000,40000,M,F,hyd,blore)
+(103,109,mani,anitha,32,29,90000,50000,M,F,mumbai,hyd)
+(107,108,mahesh,pooja,28,26,70000,60000,M,F,hyd,chennai)
+(107,111,mahesh,shilpa,28,24,70000,40000,M,F,hyd,blore)
+(112,102,nari,rani,27,23,90000,60000,M,F,delhi,del)
+(110,109,pavan,anitha,32,29,80000,50000,M,F,mumbai,hyd)
+(112,108,nari,pooja,27,26,90000,60000,M,F,delhi,chennai)
+(112,111,nari,shilpa,27,24,90000,40000,M,F,delhi,blore)
+
+
+make tuple into String:
+-----------------------
+scala> val res = cpls.map { x => x._1+" "+x._2+" "+x._3+" "+x._4+" "+x._5+" "+x._6+" "+
+     | x._7+" "+x._8+" "+x._9+" "+x._10+" "+x._11+" "+x._12}
+res: org.apache.spark.rdd.RDD[String] = MapPartitionsRDD[10] at map at <console>:40
+
+scala> res.collect.foreach(println)
+101 102 ravi rani 25 23 60000 60000 M F hyd del                                 
+105 102 raju rani 24 23 90000 60000 M F blore del
+105 104 raju manisha 24 21 90000 80000 M F blore pune
+101 111 ravi shilpa 25 24 60000 40000 M F hyd blore
+103 109 mani anitha 32 29 90000 50000 M F mumbai hyd
+107 108 mahesh pooja 28 26 70000 60000 M F hyd chennai
+107 111 mahesh shilpa 28 24 70000 40000 M F hyd blore
+112 102 nari rani 27 23 90000 60000 M F delhi del
+110 109 pavan anitha 32 29 80000 50000 M F mumbai hyd
+112 108 nari pooja 27 26 90000 60000 M F delhi chennai
+112 111 nari shilpa 27 24 90000 40000 M F delhi blore
+
+scala> res.saveAsTextFile("sparklab/matrimoniOP1")
+
+---------------------------------------------------------------------
+In Short:
+---------
+val data = sc.textFile("sparklab/matrimoni.txt")
+
+val data1 = data.filter(x => x!="")
+
+def isMale(x:String) = {
+          val w = x.split(",")
+           val sex = w(4)
+           sex == "M"
+       }
+
+val males = data1.filter(x => isMale(x))
+
+val females = data1.filter(x => !isMale(x))
+
+val cr = males.cartesian(females)
+
+val cr2 = cr.map { x =>
+    val m = x._1
+    val f = x._2
+    val mw = m.split(",")
+    val fw = f.split(",")
+    val mid = mw(0).toInt
+    val fid = fw(0).toInt
+    val mname = mw(1)
+    val fname = fw(1)
+    val mage = mw(2).toInt
+    val fage = fw(2).toInt
+    val msal = mw(3).toInt
+    val fsal = fw(3).toInt
+    val msex = mw(4)
+    val fsex = fw(4)
+    val mloc = mw(5)
+    val floc = fw(5)
+    (mid,fid,mname,fname,mage,fage,msal,fsal,msex,fsex,mloc,floc)
+  }
+
+cr2.take(5).foreach(println)
+
+val cpls = cr2.filter(x => (x._5>x._6) & (x._5-x._6)<= 4 & (x._7>=x._8))
+
+cpls.collect.foreach(println)
+
+scala> val res = cpls.map { x => x._1+" "+x._2+" "+x._3+" "+x._4+" "+x._5+" "+x._6+" "+
+       x._7+" "+x._8+" "+x._9+" "+x._10+" "+x._11+" "+x._12}
+
+res.collect.foreach(println)
+
+res.saveAsTextFile("sparklab/matrimoniOP1")

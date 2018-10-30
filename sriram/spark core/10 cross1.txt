@@ -1,0 +1,123 @@
+cartesian(cross join):
+----------------------
+cartesian means each element of left side RDD, will join with each element of right side RDD.
+
+Ex:
+---
+scala> val prod1 = List(("p1",10000),("p2",30000),("p3",40000))
+prod1: List[(String, Int)] = List((p1,10000), (p2,30000), (p3,40000))
+
+scala> val prod2 = List(("p1",30000),("p2",20000),("p3",50000))
+prod2: List[(String, Int)] = List((p1,30000), (p2,20000), (p3,50000))
+
+scala> val pair1 = sc.parallelize(prod1)
+pair1: org.apache.spark.rdd.RDD[(String, Int)] = ParallelCollectionRDD[5] at parallelize at <console>:26
+
+scala> val pair2 = sc.parallelize(prod2)
+pair2: org.apache.spark.rdd.RDD[(String, Int)] = ParallelCollectionRDD[6] at parallelize at <console>:26
+
+scala> pair1.collect
+res6: Array[(String, Int)] = Array((p1,10000), (p2,30000), (p3,40000))
+
+scala> pair2.collect
+res7: Array[(String, Int)] = Array((p1,30000), (p2,20000), (p3,50000))
+
+scala> val cr = pair1.cartesian(pair2)
+cr: org.apache.spark.rdd.RDD[((String, Int), (String, Int))] = CartesianRDD[7] at cartesian at <console>:32
+
+scala> cr.collect.foreach(println)
+((p1,10000),(p1,30000))
+((p1,10000),(p2,20000))
+((p1,10000),(p3,50000))
+((p2,30000),(p1,30000))
+((p3,40000),(p1,30000))
+((p2,30000),(p2,20000))
+((p2,30000),(p3,50000))
+((p3,40000),(p2,20000))
+((p3,40000),(p3,50000))
+
+scala> pair1.count
+res9: Long = 3
+
+scala> pair2.count
+res10: Long = 3                                                                 
+
+scala> cr.count
+res11: Long = 9
+
+convert into single tuple:
+--------------------------
+scala>  val res = cr.map{x =>
+     |     val t1 = x._1
+     |     val t2 = x._2
+     |     val prod1 = t1._1
+     |     val amt1 = t1._2
+     |     val prod2 = t2._1
+     |     val amt2 = t2._2
+     |     (prod1,prod2,amt1,amt2)
+     | }
+res: org.apache.spark.rdd.RDD[(String, String, Int, Int)] = MapPartitionsRDD[8] at map at <console>:34
+
+scala> res.collect.foreach(println)
+(p1,p1,10000,30000)
+(p1,p2,10000,20000)
+(p1,p3,10000,50000)
+(p2,p1,30000,30000)
+(p3,p1,40000,30000)
+(p2,p2,30000,20000)
+(p2,p3,30000,50000)
+(p3,p2,40000,20000)
+(p3,p3,40000,50000)
+
+
+Ex2:
+----
+scala> val num1 = sc.parallelize(List(10,30,50))
+num1: org.apache.spark.rdd.RDD[Int] = ParallelCollectionRDD[9] at parallelize at <console>:24
+
+scala> val num2 = sc.parallelize(List(20,40))
+num2: org.apache.spark.rdd.RDD[Int] = ParallelCollectionRDD[10] at parallelize at <console>:24
+
+scala> num1.collect.foreach(println)
+10
+30
+50
+
+scala> num2.collect.foreach(println)
+20
+40
+
+scala> val num = num1.cartesian(num2)
+num: org.apache.spark.rdd.RDD[(Int, Int)] = CartesianRDD[11] at cartesian at <console>:28
+
+scala> num.collect.foreach(println)
+(10,20)
+(10,40)
+(30,20)
+(50,20)
+(30,40)
+(50,40)
+
+scala> num1.count
+res18: Long = 3
+
+scala> num2.count
+res19: Long = 2
+
+scala> num.count
+res20: Long = 6
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

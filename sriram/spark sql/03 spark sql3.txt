@@ -1,0 +1,25 @@
+scala> import org.apache.spark.sql.Row
+import org.apache.spark.sql.Row
+
+scala> import org.apache.spark.sql.SparkSession
+import org.apache.spark.sql.SparkSession
+
+scala> case class Record(key: Int, value: String)
+defined class Record
+
+scala> val warehouseLocation = "spark-warehouse"
+warehouseLocation: String = spark-warehouse
+
+scala> val spark = SparkSession.builder().appName("Spark Hive Example").config("spark.sql.warehouse.dir", warehouseLocation).enableHiveSupport().getOrCreate()
+18/09/12 14:44:52 WARN SparkSession$Builder: Using an existing SparkSession; some configuration may not take effect.
+spark: org.apache.spark.sql.SparkSession = org.apache.spark.sql.SparkSession@24402f9
+
+scala> import spark.implicits._
+import spark.implicits._
+
+scala> sql("CREATE TABLE IF NOT EXISTS src (key INT, value STRING)")
+18/09/12 14:46:46 WARN HiveMetaStore: Location: file:/home/gopalkrishna/spark-warehouse/src specified for non-external table:src
+res9: org.apache.spark.sql.DataFrame = []
+
+
+

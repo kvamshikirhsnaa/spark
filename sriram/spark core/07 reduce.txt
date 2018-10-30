@@ -1,0 +1,197 @@
+[edureka_334602@ip-20-0-41-202 ~]$ hadoop fs -cat sparklab/emply1.txt
+107,tulasi,50000,F,11
+108,gouthami,70000,F,12
+109,prakash,60000,M,13
+110,narahari,80000,M,12
+111,praveen,70000,M,13
+112,janaki,40000,F,12
+101,aishwarya,80000,F,12
+102,ganga,70000,F,11
+103,vamshikrishna,90000,M,13
+104,saikrishna,100000,M,12
+105,aravindswamy,80000,M,11
+106,archana,60000,F,13
+
+scala> val data = sc.textFile("sparklab/emply1.txt")
+data: org.apache.spark.rdd.RDD[String] = sparklab/emply1.txt MapPartitionsRDD[1] at textFile at <console>:24
+
+scala> val arr = data.map(x => x.split(","))
+arr: org.apache.spark.rdd.RDD[Array[String]] = MapPartitionsRDD[2] at map at <console>:26
+
+scala> val pairs = arr.map(x => ((x(4),x(3)),x(2).toInt))
+pairs: org.apache.spark.rdd.RDD[((String, String), Int)] = MapPartitionsRDD[3] at map at <console>:28
+
+scala> val grp = pairs.groupByKey()
+grp: org.apache.spark.rdd.RDD[((String, String), Iterable[Int])] = ShuffledRDD[4] at groupByKey at <console>:30
+
+scala> grp.collect.foreach(println)
+((13,M),CompactBuffer(60000, 70000, 90000))                                     
+((12,M),CompactBuffer(80000, 100000))
+((12,F),CompactBuffer(70000, 40000, 80000))
+((13,F),CompactBuffer(60000))
+((11,F),CompactBuffer(70000, 50000))
+((11,M),CompactBuffer(80000))
+
+
+scala> val res = grp.map { x =>
+     |    val dno = x._1._1
+     |    val sex = x._1._2
+     |    val cb = x._2
+     |    val sum = cb.sum
+     |    val cnt = cb.size
+     |    val avg = sum/cnt
+     |    val max = cb.max
+     |    val min = cb.min
+     |    val r = dno+"\t"+sex+"\t"+cnt+"\t"+sum+"\t"+avg+"\t"+max+"\t"+min
+     |    r
+     | }
+res: org.apache.spark.rdd.RDD[String] = MapPartitionsRDD[5] at map at <console>:32
+
+scala> res.collect.foreach(println)
+13      M       3       220000  73333   90000   60000
+12      M       2       180000  90000   100000  80000
+12      F       3       190000  63333   80000   40000
+13      F       1       60000   60000   60000   60000
+11      F       2       120000  60000   70000   50000
+11      M       1       80000   80000   80000   80000
+
+NOTE: reduceByKey() is good performance when compared with groupByKey() but some cases
+      when multiple aggregations required we have to use groupBykey().
+
+
+column aggregation(sum of all sal):
+-----------------------------------
+scala> data.collect
+res2: Array[String] = Array(107,tulasi,50000,F,11, 108,gouthami,70000,F,12, 109,prakash,60000,M,13, 
+110,narahari,80000,M,12, 111,praveen,70000,M,13, 112,janaki,40000,F,12, 101,aishwarya,80000,F,12, 
+102,ganga,70000,F,11, 103,vamshikrishna,90000,M,13, 104,saikrishna,100000,M,12, 105,aravindswamy,80000,M,11, 106,archana,60000,F,13)
+
+scala> arr.collect
+res3: Array[Array[String]] = Array(Array(107, tulasi, 50000, F, 11), Array(108, gouthami, 70000, F, 12), 
+Array(109, prakash, 60000, M, 13), Array(110, narahari, 80000, M, 12), Array(111, praveen, 70000, M, 13), 
+Array(112, janaki, 40000, F, 12), Array(101, aishwarya, 80000, F, 12), Array(102, ganga, 70000, F, 11), 
+Array(103, vamshikrishna, 90000, M, 13), Array(104, saikrishna, 100000, M, 12), Array(105, aravindswamy, 80000, M, 11), Array(106, archana, 60000, F, 13))
+
+scala> val sal = arr.map(x => x(2).toInt)
+sal: org.apache.spark.rdd.RDD[Int] = MapPartitionsRDD[6] at map at <console>:28
+
+NOTE: sal is RDD, we are applying actions on RDD, the results are local objects.
+
+scala> sal.collect
+res4: Array[Int] = Array(50000, 70000, 60000, 80000, 70000, 40000, 80000, 70000, 90000, 100000, 80000, 60000)
+
+scala> val tot = sal.sum
+tot: Double = 850000.0                                                          
+
+scala> val tot1 = sal.reduce(_+_)
+tot1: Int = 850000
+
+NOTE: reduce() is available in scala and spark(we can apply on RDDs)
+
+scala> val cnt = sal.count
+cnt: Long = 12
+
+scala> val avg = tot/cnt
+avg: Double = 70833.33333333333
+
+scala> val avg1 = tot1/cnt
+avg1: Long = 70833
+
+NOTE: see difference between sum,reduce(), implicite type inference happening.
+
+scala> val max = sal.max
+max: Int = 100000
+
+scala> val min = sal.min
+min: Int = 40000
+
+scala> val max = sal.reduce(Math.max(_,_))
+max: Int = 100000
+
+scala> val min = sal.reduce(Math.min(_,_))
+min: Int = 40000
+
+NOTE: sal.reduce(_+_), sal.reduce(Math.max(_,_)), sal.reduce(Math.min(_,_)) 
+      sal.sum, sal.max, sal.min
+      both results are same but the performance much good when we use reduce().
+
+Ex:
+----
+scala> val lst = sc.parallelize(List(10,20,30,40,50,30,40,60,70,80,90,50,10,20),3)
+
+ 
+ rdd --> lst has 3 partitons.
+
+ suppose  partition1 --> List(10,20,30,40,50)
+          partition2 --> List(30,40,60,70,80)
+          partition3 --> List(90,50,10,20)
+
+ lst.sum ---> all partitions data will be collected into local machine,
+              sum executed at local (no parallel processing).
+              if data is huge collecting all partitions data and aggregating at local huge data will be bottleneck.
+
+ lst.reduce(_+_) ---> this arithmetic operations(+ or - or / or * or Math.max or Math.min) execute at
+                      spark cluster separately for each partiton.
+
+           partitons1 result ---> 150
+           partition2 result ---> 280
+           partition3 result ---> 170
+
+     these individual partition results will be collected into any one of spark slave cluster.
+     the final operation will be execute.
+
+          List(150,280,170)  ---> 600
+
+     the final results will be collected into local machine(or client machine).
+
+NOTE: so, if the data is huge reduce() is very good in performance compare to sum,max,min.
+
+NOTE: for entire column aggregation use reduce(), 
+      for single grouping aggregation reduceByKey() is good.
+      for multiple grouping aggregation groupByKey() is good.
+
+
+scala> val data = sc.textFile("sparklab/emply1.txt")
+data: org.apache.spark.rdd.RDD[String] = sparklab/emply1.txt MapPartitionsRDD[2] at textFile at <console>:24
+
+scala> val arr = data.map(x => x.split(","))
+arr: org.apache.spark.rdd.RDD[Array[String]] = MapPartitionsRDD[3] at map at <console>:26
+
+scala> val pairs = arr.map(x => ((x(4),x(3)),x(2).toInt))
+pairs: org.apache.spark.rdd.RDD[((String, String), Int)] = MapPartitionsRDD[4] at map at <console>:28
+
+scala> val grp = pairs.groupByKey()
+grp: org.apache.spark.rdd.RDD[((String, String), Iterable[Int])] = ShuffledRDD[5] at groupByKey at <console>:30
+
+scala> val sal = arr.map(x => x(2).toInt)
+sal: org.apache.spark.rdd.RDD[Int] = MapPartitionsRDD[6] at map at <console>:28
+
+scala> val tot1 = sal.reduce(_+_)
+tot1: Int = 850000                                                              
+
+scala> val cnt = sal.count
+cnt: Long = 12                                                                  
+
+scala> val avg1 = tot1/cnt
+avg1: Long = 70833
+
+scala> val max = sal.reduce(Math.max(_,_))
+max: Int = 100000
+
+scala> val min = sal.reduce(Math.min(_,_))
+min: Int = 40000
+
+converting into tuple:
+----------------------
+scala> val res = (tot1,cnt,avg1,max,min)
+res: (Int, Long, Long, Int, Int) = (850000,12,70833,100000,40000)
+
+converting into String:
+-----------------------
+scala> val res1 = List(tot1,cnt,avg1,max,min).mkString("\t")
+res1: String = 850000   12      70833   100000  40000
+
+save results into Hdfs.
+
+
+

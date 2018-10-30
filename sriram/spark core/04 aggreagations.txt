@@ -1,0 +1,325 @@
+gopalkrishna@ubuntu:~/hive$ hadoop fs -cat /spark/empl.txt
+101,mahesh,20000,M,11
+102,priya,30000,F,12
+103,naresh,40000,M,13
+104,swetha,50000,F,12
+105,pavan,60000,M,13
+106,laxmi,70000,F,11
+107,ramya,80000,F,14
+108,anitha,60000,F,15
+109,rajesh,40000,M,14
+110,suresh,70000,M,15
+
+
+scala> val lines = sc.textFile("hdfs://localhost/spark/empl.txt")
+lines: org.apache.spark.rdd.RDD[String] = hdfs://localhost/spark/empl.txt MapPartitionsRDD[6] at textFile at <console>:24
+
+scala> lines.collect
+res4: Array[String] = Array(101,mahesh,20000,M,11, 102,priya,30000,F,12, 103,naresh,40000,M,13, 
+104,swetha,50000,F,12, 105,pavan,60000,M,13, 106,laxmi,70000,F,11, 107,ramya,80000,F,14, 108,anitha,60000,F,15, 109,rajesh,40000,M,14, 110,suresh,70000,M,15)
+
+
+Q: find dno, sex, sum(Sal):
+---------------------------
+scala> val pair = lines.map { x =>
+     |    val w = x.split(",")
+     |    val dno = w(4)
+     |    val sex = w(3)
+     |    val sal = w(2).toInt
+     |    val mykey = (dno,sex)
+     |    (mykey,sal)
+     | }
+pair: org.apache.spark.rdd.RDD[((String, String), Int)] = MapPartitionsRDD[7] at map at <console>:26
+
+
+scala> pair.collect
+res5: Array[((String, String), Int)] = Array(((11,M),20000), ((12,F),30000), ((13,M),40000), ((12,F),50000), 
+((13,M),60000), ((11,F),70000), ((14,F),80000), ((15,F),60000), ((14,M),40000), ((15,M),70000))
+
+scala> pair.collect.foreach(println)
+((11,M),20000)
+((12,F),30000)
+((13,M),40000)
+((12,F),50000)
+((13,M),60000)
+((11,F),70000)
+((14,F),80000)
+((15,F),60000)
+((14,M),40000)
+((15,M),70000)
+
+
+scala> val res = pair.reduceByKey(_+_)
+res: org.apache.spark.rdd.RDD[((String, String), Int)] = ShuffledRDD[8] at reduceByKey at <console>:28
+
+scala> res.collect
+res6: Array[((String, String), Int)] = Array(((13,M),100000), ((15,M),70000), ((14,F),80000), ((12,F),80000), 
+((15,F),60000), ((11,F),70000), ((11,M),20000), ((14,M),40000))
+
+scala> res.collect.foreach(println)
+((13,M),100000)
+((15,M),70000)
+((14,F),80000)
+((12,F),80000)
+((15,F),60000)
+((11,F),70000)
+((11,M),20000)
+((14,M),40000)
+
+scala> pair.take(3)
+res9: Array[((String, String), Int)] = Array(((11,M),20000), ((12,F),30000), ((13,M),40000))
+
+NOTE: take is an action like collect. the results will be local objects. not RDD.
+      take is like limit in hive. upto where we want data we can take.
+      when in spark cluster all partitions data might be huge when we apply collect on client machine
+      all partitions data will come to client machine. client machine may not have capacity to
+      store whole data so take will help to check the data in limited manner.
+      take is available in scala too.
+
+
+
+Ex3: Multiple aggregations:
+---------------------------
+gopalkrishna@ubuntu:~/hive$ hadoop fs -cat /spark/emp3.txt
+301,shiva,10000,M,12
+302,anitha,10000,F,11
+303,charan,20000,M,13
+304,anjali,40000,F,14
+305,krishna,50000,M,13
+306,surya,40000,M,12
+307,vikram,50000,M,15
+308,ravi,90000,M,14
+309,esha,80000,F,11
+310,divya,80000,F,15
+311,aishwarya,70000,F,12
+312,ajit,90000,M,14
+313,raju,80000,M,15
+314,swathi,50000,F,13
+315,ishita,80000,F,14
+
+
+scala> val lines = sc.textFile("hdfs://localhost/spark/emp3.txt")
+lines: org.apache.spark.rdd.RDD[String] = hdfs://localhost/spark/emp3.txt MapPartitionsRDD[10] at textFile at <console>:24
+
+scala> lines.collect
+res10: Array[String] = Array(301,shiva,10000,M,12, 302,anitha,10000,F,11, 303,charan,20000,M,13, 
+304,anjali,40000,F,14, 305,krishna,50000,M,13, 306,surya,40000,M,12, 307,vikram,50000,M,15, 
+308,ravi,90000,M,14, 309,esha,80000,F,11, 310,divya,80000,F,15, 311,aishwarya,70000,F,12, 
+312,ajit,90000,M,14, 313,raju,80000,M,15, 314,swathi,50000,F,13, 315,ishita,80000,F,14)
+
+
+Q: dno,sex,sum(Sal),count(*),avg(sal),max(sal),min(sal):
+--------------------------------------------------------
+scala> val pair = lines.map { x =>
+     |    val w = x.split(",")
+     |    val dno = w(4)
+     |    val sex = w(3)
+     |    val sal = w(2).toInt
+     |    val mykey = (dno,sex)
+     |    (mykey,sal)
+     | }
+pair: org.apache.spark.rdd.RDD[((String, String), Int)] = MapPartitionsRDD[11] at map at <console>:26
+
+scala> pair.persist
+res11: pair.type = MapPartitionsRDD[11] at map at <console>:26
+
+
+scala> pair.collect.foreach(println)
+((12,M),10000)
+((11,F),10000)
+((13,M),20000)
+((14,F),40000)
+((13,M),50000)
+((12,M),40000)
+((15,M),50000)
+((14,M),90000)
+((11,F),80000)
+((15,F),80000)
+((12,F),70000)
+((14,M),90000)
+((15,M),80000)
+((13,F),50000)
+((14,F),80000)
+
+
+NOTE: persist is spark feature. when we persist a RDD spark won't remove that RDD.
+      when we want to apply multiple transformation on a RDD if we persist that RDD excution will start 
+      from persisted RDD. else RDD will be deleted in RAM then again dataflow need to be started from beginning.
+
+scala> val sum = pair.reduceByKey(_+_)
+sum: org.apache.spark.rdd.RDD[((String, String), Int)] = ShuffledRDD[3] at reduceByKey at <console>:28
+
+scala> sum.collect.foreach(println)
+((15,M),130000)                                                                 
+((13,M),70000)
+((12,M),50000)
+((14,F),120000)
+((12,F),70000)
+((13,F),50000)
+((15,F),80000)
+((11,F),90000)
+((14,M),180000)
+
+scala> sum.sortByKey().collect.foreach(println)
+((11,F),90000)
+((12,F),70000)
+((12,M),50000)
+((13,F),50000)
+((13,M),70000)
+((14,F),120000)
+((14,M),180000)
+((15,F),80000)
+((15,M),130000)
+
+
+scala> val size = pair.count
+size: Long = 15
+
+scala> val max = pair.reduceByKey(Math.max(_,_))
+max: org.apache.spark.rdd.RDD[((String, String), Int)] = ShuffledRDD[5] at reduceByKey at <console>:28
+
+scala> max.collect.foreach(println)
+((15,M),80000)
+((13,M),50000)
+((12,M),40000)
+((14,F),80000)
+((12,F),70000)
+((13,F),50000)
+((15,F),80000)
+((11,F),80000)
+((14,M),90000)
+
+scala> val min = pair.reduceByKey(Math.min(_,_))
+min: org.apache.spark.rdd.RDD[((String, String), Int)] = ShuffledRDD[6] at reduceByKey at <console>:28
+
+scala> min.collect.foreach(println)
+((15,M),50000)
+((13,M),20000)
+((12,M),10000)
+((14,F),40000)
+((12,F),70000)
+((13,F),50000)
+((15,F),80000)
+((11,F),10000)
+((14,M),90000)
+
+
+saving results:
+---------------
+scala> sum.saveAsTextFile("hdfs://localhost/spark/empOP")
+
+scala> max.saveAsTextFile("hdfs://localhost/spark/empOP1")
+                                                                                
+scala> min.saveAsTextFile("hdfs://localhost/spark/empOP2")
+                                                    
+gopalkrishna@ubuntu:~/hive$ hadoop fs -ls /spark/empOP
+Found 3 items
+-rw-r--r--   3 gopalkrishna supergroup          0 2018-09-09 12:48 /spark/empOP/_SUCCESS
+-rw-r--r--   3 gopalkrishna supergroup         77 2018-09-09 12:48 /spark/empOP/part-00000
+-rw-r--r--   3 gopalkrishna supergroup         61 2018-09-09 12:48 /spark/empOP/part-00001
+
+NOTE: here 2 output files cuz by defalut from spark2.x onwards partitions size is 2.
+
+gopalkrishna@ubuntu:~/hive$ hadoop fs -cat /spark/empOP/part-00000
+((15,M),130000)
+((13,M),70000)
+((12,M),50000)
+((14,F),120000)
+((12,F),70000)
+
+gopalkrishna@ubuntu:~/hive$ hadoop fs -cat /spark/empOP/part-00001
+((13,F),50000)
+((15,F),80000)
+((11,F),90000)
+((14,M),180000)
+
+converting tuples results to String(before storing into HDFS)
+--------------------------------------------------------------
+scala> sum.collect.foreach(println)
+((15,M),130000)
+((13,M),70000)
+((12,M),50000)
+((14,F),120000)
+((12,F),70000)
+((13,F),50000)
+((15,F),80000)
+((11,F),90000)
+((14,M),180000)
+
+
+scala> val tres = sum.map(x => x._1._1+"\t"+x._1._2+"\t"+x._2)
+tres: org.apache.spark.rdd.RDD[String] = MapPartitionsRDD[14] at map at <console>:30
+
+scala> tres.collect.foreach(println)
+15      M       130000                                                          
+13	M	70000
+12	M	50000
+14	F	120000
+12	F	70000
+13	F	50000
+15	F	80000
+11	F	90000
+14	M	180000
+
+now save above results in HDFS.same like sum results,map,min results also need to convert from tuple format
+to String then save in HDFS.
+
+scala> tres.saveAsTextFile("hdfs://localhost/spark/empOP_1")
+
+gopalkrishna@ubuntu:~/hive$ hadoop fs -cat /spark/empOP_1/part-00001
+13	F	50000
+15	F	80000
+11	F	90000
+14	M	180000
+
+gopalkrishna@ubuntu:~/hive$ hadoop fs -cat /spark/empOP_1/part-00000
+15	M	130000
+13	M	70000
+12	M	50000
+14	F	120000
+12	F	70000
+
+
+NOTE: in HDFS data is stored in tuple format. if we want to export to any RDBMS there is no tuple datatype.
+      so we need to keep data in premitive data types(int/string,...) for further processing easily.
+
+NOTE: above examples are not getting executing in Edureka lab.showing ArrayIndexOutOfBoundException.
+
+
+creating a method for converting tuple to String:
+-------------------------------------------------
+scala> def pairToString(x:(String,Int),delim:Any) = {
+     | val a = x._1
+     | val b = x._2
+     | val res = a+delim+b
+     | res
+     | }
+pairToString: (x: (String, Int), delim: Any)String
+
+scala> pairToString((f,50000),\t)
+<console>:26: error: not found: value f
+       pairToString((f,50000),\t)
+                     ^
+<console>:26: error: not found: value \
+       pairToString((f,50000),\t)
+                              ^
+
+NOTE: String should be in double cotes.
+
+scala> pairToString(("f",50000),"\t")
+res1: String = f  50000
+
+scala> pairToString(("m",800000)," ")
+res2: String = m 800000
+
+scala> pairToString(("m",800000),"\t")
+res3: String = m       800000
+
+scala> pairToString(("m",800000),",")
+res4: String = m,800000
+
+scala> pairToString(("m",800000),":")
+res5: String = m:800000
+
+
+

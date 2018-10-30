@@ -1,0 +1,17 @@
+kafka:
+------
+starting daemons:
+------------------
+gedit ~/.bashrc
+cd INSTALL/kafka_2.10-0.10.1.1
+cd INSTALL/kafka_2.11-2.0.0
+
+To kill kafka deamons--> kill -9 <portno>
+
+zookeeper starting:       bin/zookeeper-server-start.sh config/zookeeper.properties
+server(broker) starting:  bin/kafka-server-start.sh config/server.properties
+topic creating:           
+ 
+        bin/kafka-topics.sh --create zookeeper localhost:2181 --replication-factor 1 --partitions 1 topic sample1
+                          
+

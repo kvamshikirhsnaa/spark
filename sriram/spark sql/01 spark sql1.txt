@@ -1,0 +1,242 @@
+Spark sql:
+----------
+spark sql is a library to process spark data objects using sql select statements.
+spark sql follows mysql based sql syntaxes.
+
+ spark sql limitation:
+ ---------------------
+--> it is applicable for only structured data.
+
+--> If data is unstructured, we need to process with spark core's RDD apis and spark MLlib, nlp algorithms.
+    nltk(natural language tool kit) is best compatable with spark MLlib.
+    nltk is python module.
+
+
+spark sql provides 2 types of contexts.
+
+1) sqlContext:
+--------------
+  import org.apache.spark.sql.sqlContext
+  val sqc = new sqlContext(sc)
+
+  import sqlContext.implicits._
+
+ ---> from spark 1.6 onwards we don't need to import sqlContext. 
+      by default spark shell provides sqlContext features.
+      but if we write code in IDEA we need to import.
+      here sqc is object we creating, we can give any name.
+
+ ---> using sqlContext we can process spark data objects using sql select statements.
+
+ ---> we need to import sqlContext.impilicits._ to convert RDD to data frame.
+
+NOTE: sqlContext won't support all sql features only select clause.
+
+NOTE: sqlContext is not available from spark 2.x
+
+ scala> val sqlContext = new org.apache.spark.sql.hive.HiveContext(sc)
+ scala> val sqlc = sqlContext.sql(" <<your query>>")
+
+
+2) hiveContext:
+---------------
+  import org.apache.spark.sql.hive.hiveContext
+  val hc = new hiveContext(sc)
+
+---> using hiveContext, we can integrate hive with spark.
+     hive is a data warehouse environment in hadoop framework.
+     so  total is stored and managed at hive tables.
+     using hiveContext we can access entire hive enviroment(tables) from spark.
+
+
+ diff b/w hql stmts from hive and hql stmts from spark:
+ ------------------------------------------------------
+ ---> If hql stmt is executed from hive environment, the stmt to process,
+      will be converted as mapreduce job.
+
+ ---> If hive integrated with spark, If hql stmt executed from spark,
+      it uses DAG and inmemory(Ram) for computing.
+
+
+
+sqlContext:
+-----------
+steps to work with sqlContext:
+------------------------------
+Ex: file name- file1.txt
+               100,200,300
+               150,300,600
+                :,  :, :
+                :,  :, :
+                :,  :, :
+
+first we need to import below if write in scala IDEA(mandatory)
+
+
+
+ 1) load data into RDD:
+
+        val data = sc.textFile("sparklab/file1.txt")
+
+
+ 2) provide schema to the RDD(create case class):
+
+        case class Rec(a:Int,b:Int,c:Int)
+
+
+ 3) create method to convert raw line into case schema.
+
+       def makeRec(line:String) = {
+          val w = line.split(",")
+          val a = w(0).toInt
+          val b = w(1).toInt
+          val c = w(2).toInt
+          val r = Rec(a,b,c)
+          r
+       }
+
+    NOTE: creating method is optional we can directly convert raw data 
+          to case schema by applying map
+
+ 4) Transform each record into case schema object.
+
+       val recs = data.map(x => makeRec(x))
+
+
+ 5) convert RDD into data frame.
+
+       val df1 = recs.toDF
+
+    NOTE: here we are converting RDD to Data frame.
+          here df1 is data frame, we can give any name.
+
+    NOTE: data frame was introduce from spark 1.6
+
+
+ 6) create table instance for data frame
+
+       df1.registerTempTable("samp")
+
+    NOTE: when we register a data frame as temp table, we can apply,
+          sql select stmts on registered temp table.
+          
+    
+ 7) apply select stmts of sql on temp table(samp)
+
+          val r1 = spark.sql("select a+b+b as tot from samp")
+
+    NOTE: the results of temp table always data frames, so we can't apply sql select stmts
+          on results of temp table, for that again we need to register results of 
+          temp table with another table name, then we can apply sql select stmts. 
+
+          r1.registerTempTable("samp1")
+
+
+
+hiveContext:
+------------
+
+--->  we need to integrate spark with hive.
+      for integration copy hive-site.xml file from hive conf directory to spark conf directory.
+      then we can use hiveContext from spark.
+
+--->  if this file is not copied spark cann't understand hive metastore.
+   
+    import org.apache.spark.sql.hive.hiveContext
+
+       val hc = new hiveContext(sc)
+
+creating a new database:
+------------------------
+
+    hc.sql("create database spark21")
+
+NOTE: the above query will create database spark21.db under hive warahouse path(/user/hive/warehouse).
+    
+NOTE: whatever queries we run in spark shell using hiveContext, it will effect in hive environment only. 
+
+NOTE: to run queries first we created hc object using hiveContext, we can give any name.
+      
+       <objectname>.sql("<hive queries>")
+
+NOTE: query should be in double cotes.
+  
+creating table in spark21 database:
+-----------------------------------
+    
+    hc.sql("use spark21")
+    hc.sql("create table empl(dno int,sal int)")
+
+Inserting data into empl table from emp table in hive21 database:
+-----------------------------------------------------------------
+ 
+    hc.sql("insert into table empl select dno,sum(sal) as tot from hive21.emp group by dno")
+
+
+
+working with json using sqlContext:
+-----------------------------------
+spark sqlContext provides very good features to work with json files.
+
+Ex:
+---
+file name - file1.json
+-----------------------
+{"name":"saikrishna","age":23,"sex":"M"}
+{"name":"aravind","city":"kotakonda","sex":"M"}
+
+  import org.apache.spark.sql.sqlContext
+  val sqc = new sqlContext(sc)
+
+  
+  val jdf = sqc.read.json("sparklab/file1.json")
+
+NOTE: when we read file with sqc.read.json automatically the return object is data frame not RDD.
+  
+NOTE: now jdf will be data frame with below schema
+
+name          age       city        sex
+----------------------------------------
+saikrishna    23       null         M
+aravind       null     kotakonda    M
+
+
+NOTE: data will become structured with just one load.
+
+--> once data frame generated we can register data frame as temp table and can apply sql select statments.
+
+
+working with xml:
+-----------------
+ there 2 ways to work with xml files.
+
+ 1) using 3rd party libraries(data bricks)-->download related jars and keep in spark lib directory
+ 2) integrate spark with hive, using hiveContext bcuz hive provides good xml parsers
+    and apply xml parsers such as xpath(), xpath_string(), xpath_int()
+
+Ex:
+---
+file name - file2.xml
+---------------------
+<rec><name>saikrishna</name><age>24</age></rec>
+<rec><name>aravind</name><sex>M</sex></rec>
+
+  hc.sql("use spark21")
+  hc.sql("create table raw(line string)")
+  hc.sql("load data local inpath 'file2.xml' into table raw")
+  hc.sql("create table raw2(name string,age int,sex string) row format delimited fields terminated by ','")
+  hc.sql("insert into table raw2 select xpath_string(line,'rec/name'),xpath_int(line,'rec/age'),
+          xpath_string(line,'rec/sex') from raw")
+
+   
+NOTE: xml files will be in vertical shape,not in horizontal shape
+      to get every record as single horizontal line we need to work with mapreduce or spark core RDD apis
+      then apply as above using hiveContext with xml parsers.
+
+
+NOTE: using sqlContext we work with files
+      using hiveContext we works with existed tables under hive or 
+       we can create new tables and apply queries.
+
+
+

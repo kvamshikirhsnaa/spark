@@ -1,0 +1,297 @@
+Ex1:
+----
+scala> case class Samp(a:Int,b:Int,c:Int)
+defined class Samp
+
+scala> val s1 = Samp(10,20,30)
+s1: Samp = Samp(10,20,30)
+
+scala> val s2 = Samp(1,2,3)
+s2: Samp = Samp(1,2,3)
+
+scala> val s3 = Samp(100,200,300)
+s3: Samp = Samp(100,200,300)
+
+scala> val s4 = Samp(1000,2000,3000)
+s4: Samp = Samp(1000,2000,3000)
+
+scala> val s = List(s1,s2,s3,s4)
+s: List[Samp] = List(Samp(10,20,30), Samp(1,2,3), Samp(100,200,300), Samp(1000,2000,3000))
+
+scala> val data = sc.parallelize(s)
+data: org.apache.spark.rdd.RDD[Samp] = ParallelCollectionRDD[21] at parallelize at <console>:36
+
+scala> data.collect.foreach(println)
+Samp(10,20,30)
+Samp(1,2,3)
+Samp(100,200,300)
+Samp(1000,2000,3000)
+
+scala> val x = data.map(v => v.a)
+x: org.apache.spark.rdd.RDD[Int] = MapPartitionsRDD[22] at map at <console>:38
+
+scala> x.collect
+res22: Array[Int] = Array(10, 1, 100, 1000)
+
+scala> val all = data.map(v => v.a+v.b+v.c)
+all: org.apache.spark.rdd.RDD[Int] = MapPartitionsRDD[23] at map at <console>:40
+
+scala> all.collect
+res23: Array[Int] = Array(60, 6, 600, 6000)
+
+converting RDD data to DataFrame:
+---------------------------------
+scala> val df1 = data.toDF
+df1: org.apache.spark.sql.DataFrame = [a: int, b: int ... 1 more field]
+
+scala> df1.show()
++----+----+----+
+|   a|   b|   c|
++----+----+----+
+|  10|  20|  30|
+|   1|   2|   3|
+| 100| 200| 300|
+|1000|2000|3000|
++----+----+----+
+
+
+scala> df1.printSchema()
+root
+ |-- a: integer (nullable = true)
+ |-- b: integer (nullable = true)
+ |-- c: integer (nullable = true)
+
+scala> df1.registerTempTable("Samp1")
+warning: there was one deprecation warning; re-run with -deprecation for details
+
+
+scala> spark.sql("select a+b+c from Samp1")
+res9: org.apache.spark.sql.DataFrame = [((a + b) + c): int]
+
+scala> val r1 = spark.sql("select a+b+c from Samp1")
+r1: org.apache.spark.sql.DataFrame = [((a + b) + c): int]
+
+scala> r1.show()
++-------------+
+|((a + b) + c)|
++-------------+
+|           60|
+|            6|
+|          600|
+|         6000|
++-------------+
+
+
+
+Ex2:(without declaring case class giving schema directly while converting into DF)
+-----------------------------------------------------------------------------------
+scala> val NameAge = sc.parallelize(List(("saikrishna",23),("aravind",24),("chintu",25),("vamshikrishna",27)))
+NameAge: org.apache.spark.rdd.RDD[(String, Int)] = ParallelCollectionRDD[0] at parallelize at <console>:24
+
+scala> val dfObj = NameAge.toDF("Name","Age")
+dfObj: org.apache.spark.sql.DataFrame = [Name: string, Age: int]
+
+scala> dfObj.show()
++-------------+---+
+|         Name|Age|
++-------------+---+
+|   saikrishna| 23|
+|      aravind| 24|
+|       chintu| 25|
+|vamshikrishna| 27|
++-------------+---+
+
+scala> dfObj.printSchema
+root
+ |-- Name: string (nullable = true)
+ |-- Age: integer (nullable = true)
+
+ scala> dfObj.select("Name").show()
++-------------+
+|         Name|
++-------------+
+|   saikrishna|
+|      aravind|
+|       chintu|
+|vamshikrishna|
++-------------+
+
+
+scala> dfObj.select("Age").show()
++---+
+|Age|
++---+
+| 23|
+| 24|
+| 25|
+| 27|
++---+
+
+NOTE: on DataFrames we can just apply select,groupBy operations with out registering temp table,
+      but not all features we get by sql select stmts. so for that we need to register as temp table.
+
+
+scala> dfObj.registerTempTable("y2k")
+warning: there was one deprecation warning; re-run with -deprecation for details
+
+scala> spark.sql("select * from y2k where Age>25").show()
++-------------+---+
+|         Name|Age|
++-------------+---+
+|vamshikrishna| 27|
++-------------+---+
+
+
+Ex3:
+----
+scala> val data = sc.textFile("sparklab/emply1.txt")
+data: org.apache.spark.rdd.RDD[String] = sparklab/emply1.txt MapPartitionsRDD[2] at textFile at <console>:24
+
+scala> data.first
+res3: String = 107,tulasi,50000,F,11
+
+scala> data.collect.foreach(println)
+107,tulasi,50000,F,11
+108,gouthami,70000,F,12
+109,prakash,60000,M,13
+110,narahari,80000,M,12
+111,praveen,70000,M,13
+112,janaki,40000,F,12
+101,aishwarya,80000,F,12
+102,ganga,70000,F,11
+103,vamshikrishna,90000,M,13
+104,saikrishna,100000,M,12
+105,aravindswamy,80000,M,11
+106,archana,60000,F,13
+
+creating case class:
+--------------------
+scala> case class Emp(id:Int,name:String,sal:Int,sex:String,dno:Int)
+defined class Emp
+
+scala> def ToEmp(line:String) = {
+     |    val w = line.split(",")
+     |    val id = w(0).toInt
+     |    val name = w(1)
+     |    val sal = w(2).toInt
+     |    val sex = w(3)
+     |    val dno = w(4).toInt
+     |    val r = Emp(id,name,sal,sex,dno)
+     |    r
+     | }
+ToEmp: (line: String)Emp
+
+scala> val recs = data.map(x => ToEmp(x))
+recs: org.apache.spark.rdd.RDD[Emp] = MapPartitionsRDD[2] at map at <console>:30
+
+scala> recs.first
+res6: Emp = Emp(107,tulasi,50000,F,11)
+
+scala> recs.collect.foreach(println)
+Emp(107,tulasi,50000,F,11)
+Emp(108,gouthami,70000,F,12)
+Emp(109,prakash,60000,M,13)
+Emp(110,narahari,80000,M,12)
+Emp(111,praveen,70000,M,13)
+Emp(112,janaki,40000,F,12)
+Emp(101,aishwarya,80000,F,12)
+Emp(102,ganga,70000,F,11)
+Emp(103,vamshikrishna,90000,M,13)
+Emp(104,saikrishna,100000,M,12)
+Emp(105,aravindswamy,80000,M,11)
+Emp(106,archana,60000,F,13)
+
+
+creating DataFrame:
+-------------------
+scala> val df1 = recs.toDF
+df1: org.apache.spark.sql.DataFrame = [id: int, name: string ... 3 more fields]
+
+scala> df1
+res8: org.apache.spark.sql.DataFrame = [id: int, name: string ... 3 more fields]
+
+scala> df1.first
+res9: org.apache.spark.sql.Row = [107,tulasi,50000,F,11]
+
+scala> df1.show()
++---+-------------+------+---+---+
+| id|         name|   sal|sex|dno|
++---+-------------+------+---+---+
+|107|       tulasi| 50000|  F| 11|
+|108|     gouthami| 70000|  F| 12|
+|109|      prakash| 60000|  M| 13|
+|110|     narahari| 80000|  M| 12|
+|111|      praveen| 70000|  M| 13|
+|112|       janaki| 40000|  F| 12|
+|101|    aishwarya| 80000|  F| 12|
+|102|        ganga| 70000|  F| 11|
+|103|vamshikrishna| 90000|  M| 13|
+|104|   saikrishna|100000|  M| 12|
+|105| aravindswamy| 80000|  M| 11|
+|106|      archana| 60000|  F| 13|
++---+-------------+------+---+---+
+
+scala> df1.registerTempTable("emp1")
+warning: there was one deprecation warning; re-run with -deprecation for details
+
+scala> val r1 = spark.sql("select * from emp1")
+r1: org.apache.spark.sql.DataFrame = [id: int, name: string ... 3 more fields]
+
+scala> r1.show()
++---+-------------+------+---+---+
+| id|         name|   sal|sex|dno|
++---+-------------+------+---+---+
+|107|       tulasi| 50000|  F| 11|
+|108|     gouthami| 70000|  F| 12|
+|109|      prakash| 60000|  M| 13|
+|110|     narahari| 80000|  M| 12|
+|111|      praveen| 70000|  M| 13|
+|112|       janaki| 40000|  F| 12|
+|101|    aishwarya| 80000|  F| 12|
+|102|        ganga| 70000|  F| 11|
+|103|vamshikrishna| 90000|  M| 13|
+|104|   saikrishna|100000|  M| 12|
+|105| aravindswamy| 80000|  M| 11|
+|106|      archana| 60000|  F| 13|
++---+-------------+------+---+---+
+
+scala> val r2 = spark.sql("select * from emp1 where sal>80000")
+r2: org.apache.spark.sql.DataFrame = [id: int, name: string ... 3 more fields]
+
+scala> r2.show()
++---+-------------+------+---+---+
+| id|         name|   sal|sex|dno|
++---+-------------+------+---+---+
+|103|vamshikrishna| 90000|  M| 13|
+|104|   saikrishna|100000|  M| 12|
++---+-------------+------+---+---+
+
+
+scala> val r3 = spark.sql("select dno,sum(sal) as tot from emp1 group by dno")
+r3: org.apache.spark.sql.DataFrame = [dno: int, tot: bigint]
+
+scala> r3.show()
++---+------+
+|dno|   tot|
++---+------+
+| 12|370000|
+| 13|280000|
+| 11|200000|
++---+------+
+
+scala> val r4 = spark.sql("select dno,sex,sum(sal) as tot,avg(sal) as avg,max(sal) as max,
+                min(sal) as min,count(*) from emp1 group by dno,sex")
+r4: org.apache.spark.sql.DataFrame = [dno: int, sex: string ... 5 more fields]
+
+scala> r4.show()
++---+---+------+------------------+------+-----+--------+
+|dno|sex|   tot|               avg|   max|  min|count(1)|
++---+---+------+------------------+------+-----+--------+
+| 12|  F|190000|63333.333333333336| 80000|40000|       3|
+| 11|  F|120000|           60000.0| 70000|50000|       2|
+| 12|  M|180000|           90000.0|100000|80000|       2|
+| 11|  M| 80000|           80000.0| 80000|80000|       1|
+| 13|  M|220000| 73333.33333333333| 90000|60000|       3|
+| 13|  F| 60000|           60000.0| 60000|60000|       1|
++---+---+------+------------------+------+-----+--------+
+

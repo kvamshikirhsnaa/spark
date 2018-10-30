@@ -1,0 +1,201 @@
+Ex(Nested Json):
+----------------
+[edureka_334602@ip-20-0-41-202 ~]$ hadoop fs -cat sparklab/samp3.json
+{"name":"vamshikrishna","age":27,"qual":"MCA","address":{"city":"bangalore","state":"karnataka"},"sex":"male"}
+{"name":"ganga","age":23,"qual":"btech","address":{"city":"hyderabad","state":"telengana"},"sex":"female"}
+{"name":"aishwarya","age":24,"qual":"CA","address":{"city":"mumbai","state":"maharashtra"},"sex":"female"}[
+
+scala> val data = spark.read.json("sparklab/samp3.json")
+data: org.apache.spark.sql.DataFrame = [address: struct<city: string, state: string>, age: bigint ... 3 more fields]
+
+scala> data.show()
++--------------------+---+-------------+-----+------+
+|             address|age|         name| qual|   sex|
++--------------------+---+-------------+-----+------+
+|[bangalore,karnat...| 27|vamshikrishna|  MCA|  male|
+|[hyderabad,teleng...| 23|        ganga|btech|female|
+|[mumbai,maharashtra]| 24|    aishwarya|   CA|female|
++--------------------+---+-------------+-----+------+
+
+scala> data.collect
+res25: Array[org.apache.spark.sql.Row] = Array([[bangalore,karnataka],27,vamshikrishna,MCA,male], [[hyderabad,telengana],23,ganga,btech,female], [[mumbai,maharashtra],24,aishwarya,CA,female])
+
+
+NOTE: data is DataFrame, when we apply collect on DataFrame we get result as array collection, on that we can bring
+      whatever field we need.
+
+scala> data.collect.map(x => x(0))
+res7: Array[Any] = Array([bangalore,karnataka], [hyderabad,telengana], [mumbai,maharashtra])
+
+scala> data.collect.map(x => x(1))
+res8: Array[Any] = Array(27, 23, 24)
+
+scala> data.collect.map(x => x(2))
+res9: Array[Any] = Array(vamshikrishna, ganga, aishwarya)
+
+scala> data.collect.map(x => x(3))
+res10: Array[Any] = Array(MCA, btech, CA)
+
+scala> data.collect.map(x => x(4))
+res11: Array[Any] = Array(male, female, female)
+
+scala> val s = data.collect.map(x => x(0))
+s: Array[Any] = Array([bangalore,karnataka], [hyderabad,telengana], [mumbai,maharashtra])
+
+scala> s
+res27: Array[Any] = Array([bangalore,karnataka], [hyderabad,telengana], [mumbai,maharashtra])
+
+
+
+Ex(xml file):
+-------------
+for xml processing there are 2 good ways.
+spark sql does't good for xml files.
+hive has powerful xml features so we can integrate hive with spark sql then use xml parsers.
+another way is data bricks provide great libraries to process xml files. download and use them.
+
+Input file:
+-----------
+[edureka_334602@ip-20-0-41-202 ~]$ hadoop fs -cat sparklab/xml1.txt
+<rec><name>saikrishna</name><age>23</age><city>hyderabad</city></rec>
+<rec><name>aravind</name><age>24</age><sex>male</sex></rec>
+<rec><name>prakash</name><city>mahabubnagar</city><age>26</age></rec>
+<rec><name>vamshikrishna</name><sex>male</sex><city>bangalore</city></rec>
+
+scala> val hc = new org.apache.spark.sql.hive.HiveContext(sc)
+warning: there was one deprecation warning; re-run with -deprecation for details
+hc: org.apache.spark.sql.hive.HiveContext = org.apache.spark.sql.hive.HiveContext@69825ffc
+
+scala> hc.sql("use myspark21")
+res37: org.apache.spark.sql.DataFrame = []
+
+scala> hc.sql("create table raw(line string)")
+res38: org.apache.spark.sql.DataFrame = []
+
+scala> hc.sql("create table xinfo(name string,age int,city string,sex string)")
+res42: org.apache.spark.sql.DataFrame = []
+
+hive> select * from xinfo;
+OK
+Time taken: 0.045 seconds
+
+scala> hc.sql("insert into table xinfo select xpath_string(line,'rec/name'),xpath_int(line,'rec/age'),
+       xpath_string(line,'rec/ city'),xpath_string(line,'rec/sex') from raw")
+res43: org.apache.spark.sql.DataFrame = [] 
+
+
+scala> hc.sql("select * from xinfo").show()
++-------------+---+------------+----+
+|         name|age|        city| sex|
++-------------+---+------------+----+
+|   saikrishna| 23|   hyderabad|    |
+|      aravind| 24|            |male|
+|      prakash| 26|mahabubnagar|    |
+|vamshikrishna|  0|   bangalore|male|
++-------------+---+------------+----+
+
+hive> select * from xinfo;
+OK
+saikrishna      23      hyderabad
+aravind 24              male
+prakash 26      mahabubnagar
+vamshikrishna   0       bangalore       male
+
+scala> val s = hc.sql("select * from xinfo")
+s: org.apache.spark.sql.DataFrame = [name: string, age: int ... 2 more fields]
+
+scala> s
+res4: org.apache.spark.sql.DataFrame = [name: string, age: int ... 2 more fields]
+
+scala> s.show
++-------------+---+------------+----+
+|         name|age|        city| sex|
++-------------+---+------------+----+
+|   saikrishna| 23|   hyderabad|    |
+|      aravind| 24|            |male|
+|      prakash| 26|mahabubnagar|    |
+|vamshikrishna|  0|   bangalore|male|
++-------------+---+------------+----+
+
+
+NOTE: saving s as text file in HDFS
+
+scala> s.write.format("com.databricks.spark.csv").option("header", "false").save("sparklab/myfile.csv")
+
+[edureka_334602@ip-20-0-41-202 ~]$ hadoop fs -ls sparklab/myfile.csv
+Found 4 items
+-rw-r--r--   3 edureka_334602 hadoop          0 2018-09-15 13:15 sparklab/myfile.csv/_SUCCESS
+-rw-r--r--   3 edureka_334602 hadoop         67 2018-09-15 13:15 sparklab/myfile.csv/part-00000-a7e40410-4b05-4e87-8256-ac272501416d.csv
+-rw-r--r--   3 edureka_334602 hadoop          0 2018-09-15 13:15 sparklab/myfile.csv/part-00001-a7e40410-4b05-4e87-8256-ac272501416d.csv
+-rw-r--r--   3 edureka_334602 hadoop         31 2018-09-15 13:15 sparklab/myfile.csv/part-00002-a7e40410-4b05-4e87-8256-ac272501416d.csv
+
+[edureka_334602@ip-20-0-41-202 ~]$ hadoop fs -cat sparklab/myfile.csv/part-00000-a7e40410-4b05-4e87-8256-ac272501416d.csv
+saikrishna,23,hyderabad,
+aravind,24,,male
+prakash,26,mahabubnagar,
+
+[edureka_334602@ip-20-0-41-202 ~]$ hadoop fs -cat sparklab/myfile.csv/part-00001-a7e40410-4b05-4e87-8256-ac272501416d.csv
+
+NOTE: nothing is hear.
+
+[edureka_334602@ip-20-0-41-202 ~]$ hadoop fs -cat sparklab/myfile.csv/part-00002-a7e40410-4b05-4e87-8256-ac272501416d.csv
+vamshikrishna,0,bangalore,male
+
+NOTE: dataframe has null values so it stored for some records as in complete with comma.
+
+
+NOTE: to store in single partition use like below,
+
+df.repartitions(1).write.format("com.databricks.spark.csv").option("header", "false").save("sparklab/myfile.csv")
+
+save as parquet file:
+----------------------
+scala> s.write.parquet("sparklab/myparquetfile")
+
+[edureka_334602@ip-20-0-41-202 ~]$ hadoop fs -ls sparklab/myparquetfile
+Found 4 items
+-rw-r--r--   3 edureka_334602 hadoop          0 2018-09-15 13:32 sparklab/myparquetfile/_SUCCESS
+-rw-r--r--   3 edureka_334602 hadoop        958 2018-09-15 13:32 sparklab/myparquetfile/part-00000-78ea57bd-200c-40f6-9b83-2ada599a7bed.snappy.parquet
+-rw-r--r--   3 edureka_334602 hadoop        468 2018-09-15 13:32 sparklab/myparquetfile/part-00001-78ea57bd-200c-40f6-9b83-2ada599a7bed.snappy.parquet
+-rw-r--r--   3 edureka_334602 hadoop        925 2018-09-15 13:32 sparklab/myparquetfile/part-00002-78ea57bd-200c-40f6-9b83-2ada599a7bed.snappy.parquet
+
+[edureka_334602@ip-20-0-41-202 ~]$ hadoop fs -cat sparklab/myparquetfile/part-00000-78ea57bd-200c-40f6-9b83-2ada599a7bed.snappy.parquet
+PAR1T?,
+saikrishna?aravind*�
+saikrishnaaravindprakash$???D??N?,
+                                   mahabubnagar?'�      hyderabad
+                                                                 mahabubnagar?L
+                                                                               ,male?male?       \H
+                                                                                                   spark_schema
+                                                                                                              %?name%%?age
+                                                                                                                          %?city%
+                                                                                                                                 %?sex%L&
+                                                                                                                                        ?name<?��&
+saikrishna?aravind&�?age???&�<
+                                  ?city?�&�<
+                                             mahabubnagar?&�
+                                                            ?sex?male?�?)org.apache.spark.sql.parquet.row.metadata?�{"type":"struct","fields":[{"name":"name"
+"type":"string","nullable":true,"metadata":{}},{"name":"age","type":"integer","nullable":true,"metadata":{}},{"name":"city","type":"string","nullable":true,"metada
+ta":{}},{"name":"sex","type":"string","nullable":true,"metadata":{}}]}?8parquet-mr version 1.5.0-cdh5.7.0 (build ${buildNumber})�PAR1[edureka_334602@ip-20-0-41-202
+ ~]
+
+NOTE: we can store by converting the data frame to RDD and then invoking the saveAsTextFile method
+(df.rdd.saveAsTextFile(location)).But it is costly opertion to store dataframes as text file.Dataframes are 
+columnar while RDD is stored row wise.When we convert the dataframe to RDD(which we intend to store as text file) 
+it needs to convert the data from columnar to row wise.
+
+It is better to store the dataframes in parquet format by simply invoking
+ 
+----> df.write.parquet("<outputpath>").
+
+parquet stores in columnar format and it takes less space for storage.it uses default snappy compression.
+
+
+
+
+
+
+
+
+
+

@@ -1,0 +1,357 @@
+Spark:
+------
+In Edureka:
+-----------
+scala version: 2.11.8
+spark version: 2.1.0 
+
+scala> [edureka_334602@ip-20-0-41-190 ~]$ spark2-shell
+Setting default log level to "ERROR".
+To adjust logging level use sc.setLogLevel(newLevel). For SparkR, use setLogLevel(newLevel).
+Spark context available as 'sc' (master = yarn, app id = application_1528714825862_38481).
+Spark session available as 'spark'.
+Welcome to
+      ____              __
+     / __/__  ___ _____/ /__
+    _\ \/ _ \/ _ `/ __/  '_/
+   /___/ .__/\_,_/_/ /_/\_\   version 2.1.0.cloudera2
+      /_/
+         
+Using Scala version 2.11.8 (Java HotSpot(TM) 64-Bit Server VM, Java 1.8.0_144)
+Type in expressions to have them evaluated.
+Type :help for more information.
+
+scala>
+
+creating RDDs(Resilient Distributed Datasets) in 3 ways:
+--------------------------------------------------------
+1) when we parallelize local object, RDD(Resilient Distributed Dataset) will be created.
+2) when we apply transformations/filters over RDD, a new RDD will be created
+3) when we read data from a file using sparkContext(sc), a RDD will be created.
+
+
+1st way of creating RDD:
+------------------------
+when we parallelize local object, RDD(Resilient Distributed Dataset) will be created
+
+scala> val lst = List(1,3,2,4,5,6,7,9,8,12,16,21,25,30)
+lst: List[Int] = List(1, 3, 2, 4, 5, 6, 7, 9, 8, 12, 16, 21, 25, 30)
+
+NOTE: now here lst is local object, which is not distributed in spark cluster.
+      on local objects we can apply all scala operations.
+
+scala> lst.size
+res0: Int = 14
+
+scala> val r1 = sc.parallelize(lst)
+r1: org.apache.spark.rdd.RDD[Int] = ParallelCollectionRDD[0] at parallelize at <console>:26
+
+NOTE: here r1 is RDD. RDD is spark data object. every RDD is sub divided into partitions.
+      partitions are distributed in spark cluster.
+
+NOTE: here RDD is not created yet. it was just declared. when we apply actions over RDD
+      the execution process will start then the data will move to RAM's of cluster
+      execute transformations.
+
+NOTE: here sc stands for sparkContext.
+      
+NOTE: we can't perform all scala operations on RDDs, spark has some special features
+      we can apply these features only on RDDs not on local objects.
+      but with in RDD when we performing multi block of expressions on RDD we can apply all
+      scala features on intermediate objects(not RDDs).
+
+
+scala> r1.size
+<console>:29: error: value size is not a member of org.apache.spark.rdd.RDD[Int]
+       r1.size
+          ^
+
+NOTE: size is not available in RDD, where as in scala we can apply on local object
+
+scala> lst.size           // lst is loacl object
+res0: Int = 14
+
+scala> r1.count             // r1 is RDD
+res3: Long = 14   
+
+NOTE: RDD has count instead of size.
+
+scala> r1.collect
+res4: Array[Int] = Array(1, 3, 2, 4, 5, 6, 7, 9, 8, 12, 16, 21, 25, 30)         
+
+NOTE: here collect is action. when we trigger actions then only spark data flow execution
+      will start, that's why spark RDDs are lazy evaluated.
+
+NOTE: when we apply actions over RDD, the results will be local objects, not RDDs.
+      the results will be in array collection.
+
+scala> val res = r1.collect
+res: Array[Int] = Array(1, 3, 2, 4, 5, 6, 7, 9, 8, 12, 16, 21, 25, 30)
+
+scala> res.count
+<console>:31: error: missing argument list for method count in trait TraversableOnce
+Unapplied methods are only converted to functions when a function type is expected.
+You can make this conversion explicit by writing `count _` or `count(_)` instead of `count`.
+       res.count
+           ^
+
+scala> res.size
+res6: Int = 14
+
+NOTE: here res is local object we can't apply RDD operations on it.
+
+
+partitoning:
+------------
+scala> val lst = List(1,3,2,4,5,6,7,9,8,12,16,21,25,30)
+lst: List[Int] = List(1, 3, 2, 4, 5, 6, 7, 9, 8, 12, 16, 21, 25, 30)
+
+scala> val r1 = sc.parallelize(lst)
+r1: org.apache.spark.rdd.RDD[Int] = ParallelCollectionRDD[1] at parallelize at <console>:26
+
+scala> r1.partitions.size
+res9: Int = 2
+
+
+scala> val r2 = sc.parallelize(lst,3)
+r1: org.apache.spark.rdd.RDD[Int] = ParallelCollectionRDD[2] at parallelize at <console>:26
+
+scala> r2.partitions.size
+res9: Int = 3
+
+NOTE: generally if we apply parellilize without giving partiotion size it is partitioning data
+      into 2 partitions(before spark 2.x it was 1 partition only).
+      if we want increase or decrease partition size while declaring parallelize mention number.
+
+NOTE: in above r2 is declared as 3 partition size, in results partitons.size is  showing 3
+      here these both numbers are not equal.
+      when we apply partiton based on size of input data there might be no.of unique blocks stored in hdfs.
+      when we apply partiton every unique block will be divide into no.of partitions.
+      here our input data is very small not even one block size so these 2 numbers are looks equal.
+      
+EX:   for suppose if we have 1 gb input data, it has 8 unique blocks. if apply 3 partiton on that data
+      8*3=24 , the partitions size will be 24. these 24 partitons data will be distributed into RAM's of
+      spark cluster.
+
+
+2nd way of creating RDD:
+------------------------
+when we apply transformations/filters over RDD, a new RDD will be created
+
+scala> val x = List(10,20,30,40,50,60,70)
+x: List[Int] = List(10, 20, 30, 40, 50, 60, 70)
+
+scala> val y = x.map(x => v+50)
+y: List[Int] = List(60, 70, 80, 90, 100, 110, 120)
+
+scala> val z = y.filter(v => v>=90)
+z: List[Int] = List(90, 100, 110, 120)
+
+NOTE: above x,y,z are local objects we are performing transformation and filters on local objects,
+      so again they created new local objects.
+
+
+scala> val a = sc.parallelize(x)
+a: org.apache.spark.rdd.RDD[Int] = ParallelCollectionRDD[0] at parallelize at <console>:26
+
+scala> a
+res6: org.apache.spark.rdd.RDD[Int] = ParallelCollectionRDD[0] at parallelize at <console>:26
+
+NOTE: now here a is RDD, cuz we applied parallelize on local object(x)
+
+scala> a.count
+res0: Long = 7                                                                  
+
+scala> a.partitions.size
+res1: Int = 2
+
+scala> a.collect
+res2: Array[Int] = Array(10, 20, 30, 40, 50, 60, 70)
+
+
+scala> val b = a.map(v => v+50)
+b: org.apache.spark.rdd.RDD[Int] = MapPartitionsRDD[1] at map at <console>:28
+
+scala> b
+res3: org.apache.spark.rdd.RDD[Int] = MapPartitionsRDD[1] at map at <console>:28
+
+NOTE: here b is RDD, cuz we applied transformation over RDD(a)
+
+scala> b.count
+res4: Long = 7
+
+scala> b.collect
+res5: Array[Int] = Array(60, 70, 80, 90, 100, 110, 120)
+
+scala> val c = b.filter(v => v>=90)
+c: org.apache.spark.rdd.RDD[Int] = MapPartitionsRDD[3] at filter at <console>:30
+
+scala> c
+res12: org.apache.spark.rdd.RDD[Int] = MapPartitionsRDD[3] at filter at <console>:30
+
+NOTE: here c is also RDD, cuz we applied filter over RDD(b).
+
+NOTE: when we apply transformation/filter over RDD, results always a new RDD.
+      when we apply actions over RDD, results always local object.
+
+scala> c.count
+res10: Long = 4
+
+scala> c.collect
+res11: Array[Int] = Array(90, 100, 110, 120)
+
+
+3rd way of creationg RDD:
+-------------------------
+when we read data from a file using sparkContext(sc), a RDD will be created.
+
+input file should be in HDFS or LFS.
+
+[edureka_334602@ip-20-0-41-190 ~]$ hadoop fs -mkdir sparklab
+[edureka_334602@ip-20-0-41-190 ~]$ hadoop fs -put file1.txt sparklab/
+[edureka_334602@ip-20-0-41-190 ~]$ hadoop fs -ls sparklab/
+Found 1 items
+-rw-r--r--   3 edureka_334602 hadoop         76 2018-09-08 19:20 sparklab/file1.txt
+
+[edureka_334602@ip-20-0-41-190 ~]$ hadoop fs -cat sparklab/file1.txt
+saikrishna      23      hyderabad
+aravindswamy    24      gulbarga
+vamshikrishna   28      bangalore
+
+
+scala> val data = sc.textFile("sparklab/file1.txt")
+data: org.apache.spark.rdd.RDD[String] = sparklab/file1.txt MapPartitionsRDD[7] at textFile at <console>:24
+
+scala> data
+res15: org.apache.spark.rdd.RDD[String] = sparklab/file1.txt MapPartitionsRDD[7] at textFile at <console>:24
+
+scala> data.partitions.size
+res16: Int = 2
+
+scala> data.count
+res17: Long = 3
+
+
+scala> data.collect
+res18: Array[String] = Array(saikrishna 23      hyderabad, aravindswamy 24      gulbarga, 
+                       vamshikrishna 28      bangalore)
+
+NOTE: here it treats whole record as single string. we need to transform as per our needs.
+
+scala> data.foreach(println)
+
+NOTE: returns nothing. use collect before RDD.
+
+scala> data.collect.foreach(println)
+saikrishna      23      hyderabad
+aravindswamy    24      gulbarga
+vamshikrishna   28      bangalore
+
+scala> data.saveAsTextFile("sparklab/file1_OP")
+
+NOTE: saveAsTextFile is action of spark when we trigger this action spark execution flow will start and 
+      result will be stored in given output path.(it will create new directory and saves file).
+
+[edureka_334602@ip-20-0-41-190 ~]$ hadoop fs -ls sparklab/
+Found 2 items
+-rw-r--r--   3 edureka_334602 hadoop         76 2018-09-08 19:20 sparklab/file1.txt
+drwxr-xr-x   - edureka_334602 hadoop          0 2018-09-08 19:29 sparklab/file1_OP
+
+[edureka_334602@ip-20-0-41-190 ~]$ hadoop fs -ls sparklab/file1_OP
+Found 3 items
+-rw-r--r--   3 edureka_334602 hadoop          0 2018-09-08 19:29 sparklab/file1_OP/_SUCCESS
+-rw-r--r--   3 edureka_334602 hadoop         49 2018-09-08 19:29 sparklab/file1_OP/part-00000
+-rw-r--r--   3 edureka_334602 hadoop         27 2018-09-08 19:29 sparklab/file1_OP/part-00001
+
+[edureka_334602@ip-20-0-41-190 ~]$ hadoop fs -cat sparklab/file1_OP/part-00000
+saikrishna      23      hyderabad
+aravindswamy    24      gulbarga
+
+[edureka_334602@ip-20-0-41-190 ~]$ hadoop fs -cat sparklab/file1_OP/part-00001
+vamshikrishna   28      bangalore
+
+NOTE: By default partitons size was 2, so we got 2 output files.
+
+
+Ex2(In VmWare):
+---------------
+Spark version: 2.1.1
+scala version: 2.11.8
+
+input file:
+-----------
+gopalkrishna@ubuntu:~/hive$ hadoop fs -cat /spark/file1.txt
+101,mahesh,20000
+102,priya,30000
+103,naresh,40000
+104,swetha,50000
+105,pavan,60000
+106,laxmi,70000
+
+scala> val data = sc.textFile("hdfs://localhost/spark/file1.txt")
+data: org.apache.spark.rdd.RDD[String] = hdfs://localhost/spark/file1.txt MapPartitionsRDD[11] at textFile at <console>:24
+
+scala> data.collect
+res8: Array[String] = Array(101,mahesh,20000, 102,priya,30000, 103,naresh,40000, 
+                      104,swetha,50000, 105,pavan,60000, 106,laxmi,70000)
+
+scala> data.partitions.size
+res10: Int = 2
+
+scala> data.count
+res11: Long = 6
+
+scala> data.saveAsTextFile("hdfs://localhost/spark/file1_OP")
+
+NOTE: give full path address.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

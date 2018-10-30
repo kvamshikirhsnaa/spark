@@ -1,0 +1,209 @@
+Word Count:
+-----------
+scala> val data = sc.textFile("sparklab/input.txt")
+data: org.apache.spark.rdd.RDD[String] = sparklab/input.txt MapPartitionsRDD[1] at textFile at <console>:24
+
+scala> data.collect.foreach(println)
+hadoop is having good market
+good people learn hadoop
+having hadoop knowledge is good
+market is good now
+is hadoop the market leader now
+hadoop is having good market
+good people learn hadoop
+having hadoop knowledge is good
+market is good now
+is hadoop the market leader now
+hadoop is having good market
+good people learn hadoop
+having hadoop knowledge is good
+market is good now
+is hadoop the market leader now
+hadoop is having good market
+good people learn hadoop
+having hadoop knowledge is good
+market is good now
+is hadoop the market leader now
+hadoop is having good market
+good people learn hadoop
+having hadoop knowledge is good
+market is good now
+is hadoop the market leader now
+
+
+scala> val words = data.map(x => x.split(" "))
+words: org.apache.spark.rdd.RDD[Array[String]] = MapPartitionsRDD[2] at map at <console>:26
+
+scala> words.collect
+res2: Array[Array[String]] = Array(Array(hadoop, is, having, good, market), Array(good, people, learn, hadoop), 
+Array(having, hadoop, knowledge, is, good), Array(market, is, good, now), Array(is, hadoop, the, market, leader, now), 
+Array(hadoop, is, having, good, market), Array(good, people, learn, hadoop), Array(having, hadoop, knowledge, is, good), 
+Array(market, is, good, now), Array(is, hadoop, the, market, leader, now), Array(hadoop, is, having, good, market), 
+Array(good, people, learn, hadoop), Array(having, hadoop, knowledge, is, good), Array(market, is, good, now), Array(is, hadoop, the, market, leader, now), Array(hadoop, is, having, good, market), Array(good, people, learn, hadoop), 
+Array(having, hadoop, knowledge, is, good), Array(market, is, good, now), Array(is, hadoop, the, ...
+
+scala> val words1 = data.flatMap(x => x.split(" "))
+words1: org.apache.spark.rdd.RDD[String] = MapPartitionsRDD[5] at flatMap at <console>:26
+
+scala> words1.collect
+res4: Array[String] = Array(hadoop, is, having, good, market, good, people, learn, hadoop, having, hadoop, 
+knowledge, is, good, market, is, good, now, is, hadoop, the, market, leader, now, hadoop, is, having, good, market, 
+good, people, learn, hadoop, having, hadoop, knowledge, is, good, market, is, good, now, is, hadoop, the, market, 
+leader, now, hadoop, is, having, good, market, good, people, learn, hadoop, having, hadoop, knowledge, is, good, 
+market, is, good, now, is, hadoop, the,market, leader, now, hadoop, is, having, good, market, good, people, learn, 
+hadoop, having, hadoop, knowledge, is, good, market, is, good, now, is, hadoop, the, market, leader, now, hadoop, is, 
+having, good, market, good, people, learn, hadoop, having, hadoop, knowledge, is, good, market, is, good, now, is...
+
+NOTE: when we require all fields using flatMap will good. if we require perticular fields then use map.
+
+NOTE: by seeing words, words1 results using words1 result for wordcount is better than words result.
+
+scala> val pairs = words1.map(x => (x,1))
+pairs: org.apache.spark.rdd.RDD[(String, Int)] = MapPartitionsRDD[6] at map at <console>:28
+
+scala> pairs.collect
+res5: Array[(String, Int)] = Array((hadoop,1), (is,1), (having,1), (good,1), (market,1), (good,1), (people,1), 
+(learn,1), (hadoop,1), (having,1), (hadoop,1), (knowledge,1), (is,1), (good,1), (market,1), (is,1), (good,1), 
+(now,1), (is,1), (hadoop,1), (the,1), (market,1), (leader,1), (now,1), (hadoop,1), (is,1), (having,1), (good,1), 
+(market,1), (good,1), (people,1), (learn,1), (hadoop,1), (having,1), (hadoop,1), (knowledge,1), (is,1), (good,1), 
+(market,1), (is,1), (good,1), (now,1), (is,1), (hadoop,1), (the,1), (market,1), (leader,1), (now,1), (hadoop,1), 
+(is,1), (having,1), (good,1), (market,1), (good,1), (people,1), (learn,1), (hadoop,1), (having,1), (hadoop,1), 
+(knowledge,1), (is,1), (good,1), (market,1), (is,1), (good,1), (now,1), (is,1), (hadoop,1), (the,1), (market,1), 
+(leader,1), ...
+
+scala> val wc = pairs.reduceByKey((a,b) => a+b)
+wc: org.apache.spark.rdd.RDD[(String, Int)] = ShuffledRDD[7] at reduceByKey at <console>:30
+                
+                               (OR)
+
+scala> val wc = pairs.reduceByKey(_+_)
+wc: org.apache.spark.rdd.RDD[(String, Int)] = ShuffledRDD[8] at reduceByKey at <console>:30
+
+scala> wc.collect
+res6: Array[(String, Int)] = Array((learn,5), (is,20), (market,15), (knowledge,5), (now,10), (leader,5), (people,5), 
+(hadoop,20), (having,10), (good,20), (the,5))
+
+
+2nd way(in single line):
+------------------------
+scala> val data = sc.textFile("sparklab/input.txt")
+data: org.apache.spark.rdd.RDD[String] = sparklab/input.txt MapPartitionsRDD[1] at textFile at <console>:24
+
+scala> val wc = data.flatMap(x => x.split(" ")).map(x => (x,1)).reduceByKey(_+_)
+wc: org.apache.spark.rdd.RDD[(String, Int)] = ShuffledRDD[4] at reduceByKey at <console>:26
+              
+                                     (OR)
+
+scala> val wc = data.flatMap(_.split(" ")).map((_,1)).reduceByKey(_+_)
+wc: org.apache.spark.rdd.RDD[(String, Int)] = ShuffledRDD[7] at reduceByKey at <console>:26
+
+scala> wc.collect
+res0: Array[(String, Int)] = Array((learn,5), (is,20), (market,15), (knowledge,5), (now,10), (leader,5), 
+(people,5), (hadoop,20), (having,10), (good,20), (the,5))
+
+
+NOTE: this approach is not recommended cuz spark has RDDs persistance feature. if we apply all transformations
+      on single RDD we can't reuse the intermediate RDD results.
+
+
+3rd way(Using block of stmts):
+------------------------------
+scala> val data = sc.textFile("sparklab/input.txt")
+data: org.apache.spark.rdd.RDD[String] = sparklab/input.txt MapPartitionsRDD[1] at textFile at <console>:24
+
+scala> val wc = data.map { x =>
+     |    val arr = x.split(" ")
+     |    val pairs = arr.map(x => (x,1))
+     |    pairs
+     | }.flatMap(x => x).reduceByKey(_+_)
+wc: org.apache.spark.rdd.RDD[(String, Int)] = ShuffledRDD[12] at reduceByKey at <console>:30
+
+scala> wc.collect
+res8: Array[(String, Int)] = Array((learn,5), (is,20), (market,15), (knowledge,5), (now,10), (leader,5), 
+(people,5), (hadoop,20), (having,10), (good,20), (the,5))
+
+
+4th way(just small change for prev):
+------------------------------------
+scala> val data = sc.textFile("sparklab/input.txt")
+data: org.apache.spark.rdd.RDD[String] = sparklab/input.txt MapPartitionsRDD[1] at textFile at <console>:24
+
+scala> val wc = data.flatMap { x =>
+     |    val arr = x.split(" ")
+     |    val pairs = arr.map(x => (x,1))
+     |    pairs
+     | }.reduceByKey(_+_)
+wc: org.apache.spark.rdd.RDD[(String, Int)] = ShuffledRDD[14] at reduceByKey at <console>:30
+
+scala> wc.collect
+res9: Array[(String, Int)] = Array((learn,5), (is,20), (market,15), (knowledge,5), (now,10), (leader,5), 
+(people,5), (hadoop,20), (having,10), (good,20), (the,5))
+
+scala> wc.collect.foreach(println)
+(learn,5)
+(is,20)
+(market,15)
+(knowledge,5)
+(now,10)
+(leader,5)
+(people,5)
+(hadoop,20)
+(having,10)
+(good,20)
+(the,5)
+
+
+5th way:
+--------
+scala> val data = sc.textFile("sparklab/input.txt")
+data: org.apache.spark.rdd.RDD[String] = sparklab/input.txt MapPartitionsRDD[1] at textFile at <console>:24
+
+scala> val wc = data.flatMap { x =>
+     |    val arr = x.split(" ")
+     |    val pairs = arr.map(x => (x,1))
+     |    val words = pairs.reduceByKey(_+_)
+     |    words
+     | }
+<console>:29: error: value reduceByKey is not a member of Array[(String, Int)]
+                 val words = pairs.reduceByKey(_+_)
+                                   ^
+
+NOTE: here inside block of stmts pairs is not RDD, only scala functions can apply.
+      here reduceByKey is spark api so we can't apply reduceByKey inside block of stmts.
+      i.e that's why follow 4th approach if you want using block of stms.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

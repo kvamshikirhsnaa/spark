@@ -1,0 +1,242 @@
+spark sql provides 2 types of data objects, 
+1) DataFrame
+2) DataSet
+
+---> DataFrame uses catalyst optimizer
+     DataSet uses catalyst optimizer along with tungsten optimizer.
+
+---> Both RDD and DataFrame uses in-memory computing, in-memory computing is very faster than 
+     traditional disk computing.
+     But Tungsten uses cpu cahce along with in-memory computing.
+
+---> computing using cpu cahce is very faster than in-memory computing.
+
+---> speed of cpu cache computing > speed of in-memory computing > speed of disk computing.
+
+
+Ex:
+---
+creating case class:
+--------------------
+scala> case class samp(a:Int,b:Int)
+defined class samp
+
+creating RDD:
+-------------
+scala> val rdd1 = sc.parallelize(List(samp(1,2),samp(10,20),samp(100,200),samp(1000,2000)))
+rdd1: org.apache.spark.rdd.RDD[samp] = ParallelCollectionRDD[0] at parallelize at <console>:26
+
+converting RDD to DataFrame(RDD has schema structured):
+-------------------------------------------------------
+scala> val df1 = rdd1.toDF
+df1: org.apache.spark.sql.DataFrame = [a: int, b: int]
+
+scala> df1.show()
++----+----+
+|   a|   b|
++----+----+
+|   1|   2|
+|  10|  20|
+| 100| 200|
+|1000|2000|
++----+----+
+
+select statement on DataFrame:
+------------------------------
+scala> df1.select("a").show()
++----+
+|   a|
++----+
+|   1|
+|  10|
+| 100|
+|1000|
++----+
+
+scala> df1.select("a","b").show()
++----+----+
+|   a|   b|
++----+----+
+|   1|   2|
+|  10|  20|
+| 100| 200|
+|1000|2000|
++----+----+
+
+Applying arithmetic operations on DataFrames using select statement:
+--------------------------------------------------------------------
+scala> df1.select("a","b+1").show()
+org.apache.spark.sql.AnalysisException: cannot resolve '`b+1`' given input columns: [a, b];;
+'Project [a#3, 'b+1]
++- SerializeFromObject [assertnotnull(input[0, samp, true]).a AS a#3, assertnotnull(input[0, samp, true]).b AS b#4]
+   +- ExternalRDD [obj#2]
+
+
+
+scala> df1.select("a","b"+1).show()
+org.apache.spark.sql.AnalysisException: cannot resolve '`b1`' given input columns: [a, b];;
+'Project [a#3, 'b1]
++- SerializeFromObject [assertnotnull(input[0, samp, true]).a AS a#3, assertnotnull(input[0, samp, true]).b AS b#4]
+   +- ExternalRDD [obj#2]
+
+
+NOTE: we can't peroform like above.
+
+scala> df1.select(df1("a"),df1("b")+1).show()
++----+-------+
+|   a|(b + 1)|
++----+-------+
+|   1|      3|
+|  10|     21|
+| 100|    201|
+|1000|   2001|
++----+-------+
+
+cala> df1.select(df1("a")+2,df1("b")+1).show()
++-------+-------+
+|(a + 2)|(b + 1)|
++-------+-------+
+|      3|      3|
+|     12|     21|
+|    102|    201|
+|   1002|   2001|
++-------+-------+
+
+scala> df1.select(df1("a")*2,df1("b")*3).show()
++-------+-------+
+|(a * 2)|(b * 3)|
++-------+-------+
+|      2|      6|
+|     20|     60|
+|    200|    600|
+|   2000|   6000|
++-------+-------+
+
+filter on DataFrame:
+--------------------
+scala> df1.filter(df1("a")>10).show()
++----+----+
+|   a|   b|
++----+----+
+| 100| 200|
+|1000|2000|
++----+----+
+
+scala> df1.filter(df1("a")>100).show()
++----+----+
+|   a|   b|
++----+----+
+|1000|2000|
++----+----+
+
+scala> df1.filter(df1("b")>=2000).show()
++----+----+
+|   a|   b|
++----+----+
+|1000|2000|
++----+----+
+
+scala> df1.filter(df1("b")==2000).show()
+<console>:31: error: overloaded method value filter with alternatives:
+  (func: org.apache.spark.api.java.function.FilterFunction[org.apache.spark.sql.Row])org.apache.spark.sql.Dataset[org.apache.spark.sql.Row] <and>
+
+NOTE: DataFrame won't support == for comparision, we have to use === , for not equals to !==
+
+
+Ex2:
+----
+scala> case class samp1(name:String,age:Int)
+defined class samp1
+
+scala> val rdd2 = sc.parallelize(List(samp1("saikrishna",23),samp1("aravind",24),samp1("prakash",26),
+                  samp1("vamshikrishna",27),samp1("narahari",28)))
+rdd2: org.apache.spark.rdd.RDD[samp1] = ParallelCollectionRDD[22] at parallelize at <console>:26
+
+scala> val df2 = rdd2.toDF
+df2: org.apache.spark.sql.DataFrame = [name: string, age: int]
+
+scala> df2.show()
++-------------+---+
+|         name|age|
++-------------+---+
+|   saikrishna| 23|
+|      aravind| 24|
+|      prakash| 26|
+|vamshikrishna| 27|
+|     narahari| 28|
++-------------+---+
+
+scala> df2.select("name").show()
++-------------+
+|         name|
++-------------+
+|   saikrishna|
+|      aravind|
+|      prakash|
+|vamshikrishna|
+|     narahari|
++-------------+
+
+scala> df2.select("name","age").show()
++-------------+---+
+|         name|age|
++-------------+---+
+|   saikrishna| 23|
+|      aravind| 24|
+|      prakash| 26|
+|vamshikrishna| 27|
+|     narahari| 28|
++-------------+---+
+
+
+scala> df2.filter(df2("name")=="saikrishna").show()
+<console>:31: error: overloaded method value filter with alternatives:
+  (func: org.apache.spark.api.java.function.FilterFunction[org.apache.spark.sql.Row])org.apache.spark.sql.Dataset[org.apache.spark.sql.Row] <and>
+  (func: org.apache.spark.sql.Row => Boolean)org.apache.spark.sql.Dataset[org.apache.spark.sql.Row] <and>
+
+
+NOTE: use ===
+
+
+scala> df2.filter(df2("age")>=25).show()
++-------------+---+
+|         name|age|
++-------------+---+
+|      prakash| 26|
+|vamshikrishna| 27|
+|     narahari| 28|
++-------------+---+
+
+scala> df2.select(df2("age")+1).show()
++---------+
+|(age + 1)|
++---------+
+|       24|
+|       25|
+|       27|
+|       28|
+|       29|
++---------+
+
+scala> df2.select("name",df2("age")+1).show()
+<console>:31: error: overloaded method value select with alternatives:
+  [U1, U2](c1: org.apache.spark.sql.TypedColumn[org.apache.spark.sql.Row,U1], c2: org.apache.spark.sql.TypedColumn[org.apache.spark.sql.Row,U2])org.apache.spark.sq
+l.Dataset[(U1, U2)] <and>
+
+scala> df2.select(df2("name"),df2("age")+1).show()
+
+
+scala> df2.select(df2("name"),df2("age")-1).show()
++-------------+---------+
+|         name|(age - 1)|
++-------------+---------+
+|   saikrishna|       22|
+|      aravind|       23|
+|      prakash|       25|
+|vamshikrishna|       26|
+|     narahari|       27|
++-------------+---------+
+
+
+
+

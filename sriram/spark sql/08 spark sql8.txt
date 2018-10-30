@@ -1,0 +1,233 @@
+Ex:
+---
+In Spark:
+---------
+scala> import org.apache.spark.sql.hive.HiveContext
+import org.apache.spark.sql.hive.HiveContext
+
+scala> val hc = new HiveContext(sc)
+warning: there was one deprecation warning; re-run with -deprecation for details
+hc: org.apache.spark.sql.hive.HiveContext = org.apache.spark.sql.hive.HiveContext@2358443e
+
+scala> hc.sql("use myspark21")
+res3: org.apache.spark.sql.DataFrame = []
+
+scala> hc.sql("show tables").show
++---------+---------+-----------+
+| database|tableName|isTemporary|
++---------+---------+-----------+
+|myspark21|      emp|      false|
+|myspark21|     samp|      false|
++---------+---------+-----------+
+
+scala> hc.sql("select * from emp").show
++---+-------------+------+---+---+
+| id|         name|   sal|sex|dno|
++---+-------------+------+---+---+
+|107|       tulasi| 50000|  F| 11|
+|108|     gouthami| 70000|  F| 12|
+|109|      prakash| 60000|  M| 13|
+|110|     narahari| 80000|  M| 12|
+|111|      praveen| 70000|  M| 13|
+|112|       janaki| 40000|  F| 12|
+|101|    aishwarya| 80000|  F| 12|
+|102|        ganga| 70000|  F| 11|
+|103|vamshikrishna| 90000|  M| 13|
+|104|   saikrishna|100000|  M| 12|
+|105| aravindswamy| 80000|  M| 11|
+|106|      archana| 60000|  F| 13|
++---+-------------+------+---+---+
+
+
+scala> hc.sql("select dno,sex,sum(sal) as sal,avg(sal) as avg,max(sal) as max,min(sal) as min,
+       count(sal) as cnt from emp group by dno,sex").show
++---+---+------+------------------+------+-----+---+                            
+|dno|sex|   sal|               avg|   max|  min|cnt|
++---+---+------+------------------+------+-----+---+
+| 12|  F|190000|63333.333333333336| 80000|40000|  3|
+| 11|  F|120000|           60000.0| 70000|50000|  2|
+| 12|  M|180000|           90000.0|100000|80000|  2|
+| 11|  M| 80000|           80000.0| 80000|80000|  1|
+| 13|  M|220000| 73333.33333333333| 90000|60000|  3|
+| 13|  F| 60000|           60000.0| 60000|60000|  1|
++---+---+------+------------------+------+-----+---+
+
+In Hive:
+--------
+hive> use myspark21;
+OK
+Time taken: 2.536 seconds
+
+hive> show tables;
+OK
+emp
+samp
+
+hive> select * from emp;
+OK
+107     tulasi  50000   F       11
+108     gouthami        70000   F       12
+109     prakash 60000   M       13
+110     narahari        80000   M       12
+111     praveen 70000   M       13
+112     janaki  40000   F       12
+101     aishwarya       80000   F       12
+102     ganga   70000   F       11
+103     vamshikrishna   90000   M       13
+104     saikrishna      100000  M       12
+105     aravindswamy    80000   M       11
+106     archana 60000   F       13
+Time taken: 0.537 seconds, Fetched: 12 row(s)
+
+hive> select dno,sex,sum(sal) as sal,avg(sal) as avg,max(sal) as max,min(sal) as min,
+      count(sal) as cnt from emp group by dno,sex;
+OK
+11      F       120000  60000.0 70000   50000   2
+11      M       80000   80000.0 80000   80000   1
+12      F       190000  63333.333333333336      80000   40000   3
+12      M       180000  90000.0 100000  80000   2
+13      F       60000   60000.0 60000   60000   1
+13      M       220000  73333.33333333333       90000   60000   3
+Time taken: 19.016 seconds, Fetched: 6 row(s)
+
+
+
+Ex2(json file):
+---------------
+spark sql provides good effience for json files.
+
+[edureka_334602@ip-20-0-41-190 ~]$ hadoop fs -cat sparklab/samp2.json
+{"name":"shiva","age":25}
+{"name":"ganga","city":"hyd"}
+{"name":"parvathi","age":26,"city":"chennai"}
+
+scala> val df1 = spark.read.json("sparklab/samp2.json")
+df1: org.apache.spark.sql.DataFrame = [age: bigint, city: string ... 1 more field]
+
+scala> df1.show()
++----+-------+--------+
+| age|   city|    name|
++----+-------+--------+
+|  25|   null|   shiva|
+|null|    hyd|   ganga|
+|  26|chennai|parvathi|
++----+-------+--------+
+
+NOTE: with single line we can make file into structerd format.
+
+scala> df1.registerTempTable("shiva")
+warning: there was one deprecation warning; re-run with -deprecation for details
+
+scala> spark.sql("select * from shiva where city is null").show()
++---+----+-----+
+|age|city| name|
++---+----+-----+
+| 25|null|shiva|
++---+----+-----+
+
+
+In Hive:
+--------
+hive> create table shiva2(line string);
+OK
+Time taken: 0.318 seconds
+
+hive> load data inpath 'sparklab/samp2.json' overwrite into table shiva2;
+OK
+
+hive> select * from shiva2;
+OK
+{"name":"shiva","age":25}
+{"name":"ganga","city":"hyd"}
+{"name":"parvathi","age":26,"city":"chennai"}
+
+hive> select get_json_object(line,'$.name') from shiva2;
+OK
+shiva
+ganga
+parvathi
+Time taken: 9.882 seconds, Fetched: 3 row(s)
+
+hive> select get_json_object(line,'$.age') from shiva2;
+OK
+25
+NULL
+26
+
+hive> select get_json_object(line,'$.city') from shiva2;
+OK
+NULL
+hyd
+chennai
+
+hive> create table shivaNew(name string,age int,city string);
+OK
+
+hive> insert into table shivaNew select get_json_object(line,'$.name'),get_json_object(line,'$.age'),
+    > get_json_object(line,'$.city') from shiva2;
+OK
+
+hive> select * from shivaNew;
+OK
+shiva   25      NULL
+ganga   NULL    hyd
+parvathi        26      chennai
+Time taken: 0.039 seconds, Fetched: 3 row(s)
+
+in way2(using UDTF lateral view):
+---------------------------------
+hive> select x.* from shiva2 lateral view json_tuple(line,'name','age','city') x as n,a,c;
+OK
+shiva   25      NULL
+ganga   NULL    hyd
+parvathi        26      chennai
+Time taken: 9.933 seconds, Fetched: 3 row(s)
+
+NOTE: create new table and load above results into it.
+
+NOTE: By seeing above using spark sql we can perform very fast and coding is small too.
+
+NOTE: find out how to process below json file:
+----------------------------------------------
+[edureka_334602@ip-20-0-41-190 ~]$ hadoop fs -cat sparklab/samp.json
+{
+ "name":"shiva",
+ "age":25
+}
+{
+ "name":"ganga",
+ "city":"hyd"
+}
+{
+ "name":"parvathi",
+ "age":26,
+ "city":"chennai"
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

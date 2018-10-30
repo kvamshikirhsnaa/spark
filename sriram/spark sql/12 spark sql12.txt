@@ -1,0 +1,272 @@
+Dataset:
+--------
+creating Dataset:
+-----------------
+scala> val ds1 = List(10,20,30).toDS()
+ds1: org.apache.spark.sql.Dataset[Int] = [value: int]
+
+scala> ds1.show()
++-----+
+|value|
++-----+
+|   10|
+|   20|
+|   30|
++-----+
+
+scala> ds1.collect
+res1: Array[Int] = Array(10, 20, 30)
+
+
+Ex2:
+----
+scala> val ds2 = Seq(1,2,3).toDS()
+ds2: org.apache.spark.sql.Dataset[Int] = [value: int]
+
+NOTE: Seq also one type of collection.
+
+scala> ds2.show()
++-----+
+|value|
++-----+
+|    1|
+|    2|
+|    3|
++-----+
+scala> ds2.collect
+res3: Array[Int] = Array(1, 2, 3)
+
+
+scala> ds2.map(x => x+10).collect
+res6: Array[Int] = Array(11, 12, 13)
+
+NOTE: we can apply RDD,DataFrame features on Dataset(from spark 2.x onwards)
+      but Dataset performance will be faster than RDD,DataFrame cuz of tungsten optimizer with catalyst optimizer.
+      it uses cpu cache for computing along with in-memory.
+
+
+scala> ds2.count
+res4: Long = 3                                                                  
+
+scala> ds2.agg(sum("value")).show()
++----------+
+|sum(value)|
++----------+
+|         6|
++----------+
+
+NOTE: to create DataFrame we need schema
+      to create Dataset with or without schema we can create. it took our input as value here.
+
+Ex3:
+----
+scala> case class person(name:String,age:Int)
+defined class person
+
+scala> case class person(name:String,age:Int)
+defined class person
+
+scala> val ds3 = Seq(person("ganga",23),person("aishwarya",24))
+ds3: Seq[person] = List(person(ganga,23), person(aishwarya,24))
+
+scala> val ds3 = Seq(person("ganga",23),person("aishwarya",24)).toDS()
+ds3: org.apache.spark.sql.Dataset[person] = [name: string, age: int]
+
+scala> ds3.collect
+res8: Array[person] = Array(person(ganga,23), person(aishwarya,24))
+
+scala> ds3.show()
++---------+---+
+|     name|age|
++---------+---+
+|    ganga| 23|
+|aishwarya| 24|
++---------+---+
+
+Ex3:
+----
+[edureka_334602@ip-20-0-41-202 ~]$ hadoop fs -cat sparklab/samp2.json
+{"name":"shiva","age":25}
+{"name":"ganga","city":"hyd"}
+{"name":"parvathi","age":26,"city":"chennai"}
+
+---> for json file we can use spark sql json read operation with single line data will be structured and will 
+     return  result as DataFrame
+
+scala> val df1 = spark.read.json("sparklab/samp2.json")
+df1: org.apache.spark.sql.DataFrame = [age: bigint, city: string ... 1 more field]
+
+scala> df1.show()
++----+-------+--------+
+| age|   city|    name|
++----+-------+--------+
+|  25|   null|   shiva|
+|null|    hyd|   ganga|
+|  26|chennai|parvathi|
++----+-------+--------+
+
+NOTE: here df1 is DataFrame.
+ 
+converting file to Dataset:
+---------------------------
+first we need to create schema(case class)
+
+scala> case class samp(age:BigInt,city:String,name:String)
+defined class samp
+
+scala> val ds1 = spark.read.json("sparklab/samp2.json").as[samp]
+ds1: org.apache.spark.sql.Dataset[samp] = [age: bigint, city: string ... 1 more field]
+
+NOTE: when we reading file at the end we have to use "as[<case class name>]"
+
+NOTE: ds1 is Dataset.
+
+scala> ds1.collect
+res1: Array[samp] = Array(samp(25,null,shiva), samp(null,hyd,ganga), samp(26,chennai,parvathi))
+
+changing fields in schema:
+--------------------------
+scala> case class samp(name:String,age:BigInt,city:String)
+defined class samp
+
+scala> val ds2 = spark.read.json("sparklab/samp2.json").as[samp]
+ds2: org.apache.spark.sql.Dataset[samp] = [age: bigint, city: string ... 1 more field]
+
+scala> ds2.collect
+res2: Array[samp] = Array(samp(shiva,25,null), samp(ganga,null,hyd), samp(parvathi,26,chennai))
+
+
+word count:
+-----------
+Input file:
+-----------
+[edureka_334602@ip-20-0-41-202 ~]$ hadoop fs -cat sparklab/input.txt
+hadoop is having good market
+good people learn hadoop
+having hadoop knowledge is good
+market is good now
+is hadoop the market leader now
+hadoop is having good market
+good people learn hadoop
+having hadoop knowledge is good
+market is good now
+is hadoop the market leader now
+hadoop is having good market
+good people learn hadoop
+having hadoop knowledge is good
+market is good now
+is hadoop the market leader now
+hadoop is having good market
+good people learn hadoop
+having hadoop knowledge is good
+market is good now
+is hadoop the market leader now
+hadoop is having good market
+good people learn hadoop
+having hadoop knowledge is good
+market is good now
+
+
+scala> val data = sc.textFile("sparklab/input.txt")
+data: org.apache.spark.rdd.RDD[String] = sparklab/input.txt MapPartitionsRDD[31] at textFile at <console>:24
+
+scala> val ds1 = data.toDS()
+ds1: org.apache.spark.sql.Dataset[String] = [value: string]
+
+scala> val words = ds1.flatMap(x => x.split(" ")).map(x => (x,1))
+words: org.apache.spark.sql.Dataset[(String, Int)] = [_1: string, _2: int]
+
+scala> words.collect
+res9: Array[(String, Int)] = Array((hadoop,1), (is,1), (having,1), (good,1), (market,1), (good,1), (people,1), 
+(learn,1), (hadoop,1), (having,1), (hadoop,1), (knowledge,1), (is,1), (good,1), (market,1), (is,1), (good,1), 
+(now,1), (is,1), (hadoop,1), (the,1), (market,1), (leader,1), (now,1), (hadoop,1), (is,1), (having,1), (good,1), 
+(market,1), (good,1), (people,1), (learn,1), (hadoop,1), (having,1), (hadoop,1), (knowledge,1), (is,1), (good,1), 
+(market,1), (is,1), (good,1), (now,1), (is,1), (hadoop,1), (the,1), (market,1), (leader,1), (now,1), (hadoop,1), 
+(is,1), (having,1), (good,1), (market,1), (good,1), (people,1), (learn,1), (hadoop,1), (having,1), (hadoop,1), 
+(knowledge,1), (is,1), (good,1), (market,1), (is,1), (good,1), (now,1), (is,1), (hadoop,1), (the,1), (market,1), 
+(leader,1), ...
+
+scala> words.show()
++---------+---+
+|       _1| _2|
++---------+---+
+|   hadoop|  1|
+|       is|  1|
+|   having|  1|
+|     good|  1|
+|   market|  1|
+|     good|  1|
+|   people|  1|
+|    learn|  1|
+|   hadoop|  1|
+|   having|  1|
+|   hadoop|  1|
+|knowledge|  1|
+|       is|  1|
+|     good|  1|
+|   market|  1|
+|       is|  1|
+|     good|  1|
+|      now|  1|
+|       is|  1|
+|   hadoop|  1|
++---------+---+
+only showing top 20 rows
+
+NOTE: show() will display only first 20 records.
+
+scala> val wc = words.groupBy("_1")
+wc: org.apache.spark.sql.RelationalGroupedDataset = org.apache.spark.sql.RelationalGroupedDataset@75931d62
+
+NOTE: the above result converted from Dataset to RelationalGroupedDataset
+
+scala> val wc = words.groupBy("_1").count()
+wc: org.apache.spark.sql.DataFrame = [_1: string, count: bigint]
+
+NOTE: the above result converted from Dataset to DataFrame.
+
+scala> wc.collect.foreach(println)
+[having,10]                                                                     
+[is,20]
+[people,5]
+[now,10]
+[the,5]
+[leader,5]
+[knowledge,5]
+[market,15]
+[good,20]
+[learn,5]
+[hadoop,20]
+
+scala> wc.show()
++---------+-----+
+|       _1|count|
++---------+-----+
+|   having|   10|
+|       is|   20|
+|   people|    5|
+|      now|   10|
+|      the|    5|
+|   leader|    5|
+|knowledge|    5|
+|   market|   15|
+|     good|   20|
+|    learn|    5|
+|   hadoop|   20|
++---------+-----+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -1,0 +1,15 @@
+spark with hive integration:
+----------------------------
+scala> import org.apache.spark.sql.hive._
+import org.apache.spark.sql.hive._
+
+scala> val hc = new org.apache.spark.sql.hive.HiveContext(sc)
+warning: there was one deprecation warning; re-run with -deprecation for details
+hc: org.apache.spark.sql.hive.HiveContext = org.apache.spark.sql.hive.HiveContext@1a630ad6
+
+
+NOTE: above 2 statements mandotory while integrating hive with spark.
+      we should copy hive-site.xml file into spark conf directory.
+
+
+

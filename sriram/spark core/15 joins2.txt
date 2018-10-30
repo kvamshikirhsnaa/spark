@@ -1,0 +1,136 @@
+Joins:
+------
+[edureka_334602@ip-20-0-41-190 ~]$ hadoop fs -cat sparklab/emply2.txt
+101,mahesh,20000,M,11
+102,priya,30000,F,12
+103,naresh,40000,M,13
+104,swetha,50000,F,12
+105,pavan,60000,M,13
+106,laxmi,70000,F,11
+107,shwetha,40000,F,13
+108,naresh,50000,M,12
+109,suresh,80000,M,11
+110,anil,90000,M,15
+111,priya,60000,F,11
+
+[edureka_334602@ip-20-0-41-190 ~]$ hadoop fs -cat sparklab/dept1.txt
+11,Marketing,Hyd
+12,HR,Delhi
+13,Finance,Mumbai
+14,Admin,Blore
+
+scala> val e = sc.textFile("sparklab/emply2.txt")
+e: org.apache.spark.rdd.RDD[String] = sparklab/emply2.txt MapPartitionsRDD[12] at textFile at <console>:24
+
+scala> e.collect
+res7: Array[String] = Array(101,mahesh,20000,M,11, 102,priya,30000,F,12, 103,naresh,40000,M,13, 
+104,swetha,50000,F,12, 105,pavan,60000,M,13, 106,laxmi,70000,F,11, 107,shwetha,40000,F,13, 
+108,naresh,50000,M,12, 109,suresh,80000,M,11, 110,anil,90000,M,15, 111,priya,60000,F,11)
+
+scala> val d = sc.textFile("sparklab/dept1.txt")
+d: org.apache.spark.rdd.RDD[String] = sparklab/dept1.txt MapPartitionsRDD[16] at textFile at <console>:24
+
+scala> d.collect
+res9: Array[String] = Array(11,Marketing,Hyd, 12,HR,Delhi, 13,Finance,Mumbai, 14,Admin,Blore)
+
+here RDD e, d are in String format not in Tuple, so we can't join them
+first make into Tuple shape then join.
+
+scala> val emp = e.map{ x =>
+     |     val w = x.split(",")
+     |     val dno = w(4).toInt
+     |     val id = w(0)
+     |     val name = w(1)
+     |     val sal = w(2).toInt
+     |     val sex = w(3)
+     |   (dno,(id,name,sal,sex))
+     | }
+emp: org.apache.spark.rdd.RDD[(Int, (String, String, Int, String))] = MapPartitionsRDD[17] at map at <console>:26
+
+scala> emp.collect.foreach(println)
+(11,(101,mahesh,20000,M))
+(12,(102,priya,30000,F))
+(13,(103,naresh,40000,M))
+(12,(104,swetha,50000,F))
+(13,(105,pavan,60000,M))
+(11,(106,laxmi,70000,F))
+(13,(107,shwetha,40000,F))
+(12,(108,naresh,50000,M))
+(11,(109,suresh,80000,M))
+(15,(110,anil,90000,M))
+(11,(111,priya,60000,F))
+
+scala> val dept = d.map{ x =>
+     |    val w = x.split(",")
+     |    val dno = w(0).toInt
+     |    val dname = w(1)
+     |    val loc = w(2)
+     |    (dno,(dname,loc))
+     | }
+dept: org.apache.spark.rdd.RDD[(Int, (String, String))] = MapPartitionsRDD[19] at map at <console>:26
+
+scala> dept.collect.foreach(println)
+(11,(Marketing,Hyd))
+(12,(HR,Delhi))
+(13,(Finance,Mumbai))
+(14,(Admin,Blore))
+
+
+scala> val j = emp.join(dept)
+j: org.apache.spark.rdd.RDD[(Int, ((String, String, Int, String), (String, String)))] = MapPartitionsRDD[22] at join at <console>:32
+
+scala> j.collect.foreach(println)
+(12,((102,priya,30000,F),(HR,Delhi)))
+(12,((104,swetha,50000,F),(HR,Delhi)))
+(12,((108,naresh,50000,M),(HR,Delhi)))
+(13,((107,shwetha,40000,F),(Finance,Mumbai)))
+(13,((103,naresh,40000,M),(Finance,Mumbai)))
+(13,((105,pavan,60000,M),(Finance,Mumbai)))
+(11,((109,suresh,80000,M),(Marketing,Hyd)))
+(11,((111,priya,60000,F),(Marketing,Hyd)))
+(11,((101,mahesh,20000,M),(Marketing,Hyd)))
+(11,((106,laxmi,70000,F),(Marketing,Hyd)))
+
+scala> val res = j.map{x =>
+     |    val id = x._2._1._1
+     |    val name = x._2._1._2
+     |    val sal = x._2._1._3
+     |    val sex = x._2._1._4
+     |    val dept = x._2._2._1
+     |    val loc = x._2._2._2
+     |    val dno = x._1
+     |    List(id,name,sal,sex,dno,dept,loc).mkString("\t")
+     | }
+res: org.apache.spark.rdd.RDD[String] = MapPartitionsRDD[23] at map at <console>:34
+
+scala> res.collect.foreach(println)
+102     priya   30000   F       12      HR      Delhi
+104     swetha  50000   F       12      HR      Delhi
+108     naresh  50000   M       12      HR      Delhi
+107     shwetha 40000   F       13      Finance Mumbai
+103     naresh  40000   M       13      Finance Mumbai
+105     pavan   60000   M       13      Finance Mumbai
+109     suresh  80000   M       11      Marketing       Hyd
+111     priya   60000   F       11      Marketing       Hyd
+101     mahesh  20000   M       11      Marketing       Hyd
+106     laxmi   70000   F       11      Marketing       Hyd
+
+
+sum(sal) of each loc:
+---------------------
+scala> val tot = res.map { x =>
+     |    val w = x.split("\t")
+     |    val loc = w(6)
+     |    val sal = w(2).toInt
+     |    (loc,sal)
+     | }
+tot: org.apache.spark.rdd.RDD[(String, Int)] = MapPartitionsRDD[24] at map at <console>:36
+
+scala> val tot2 = tot.reduceByKey(_+_)
+tot2: org.apache.spark.rdd.RDD[(String, Int)] = ShuffledRDD[11] at reduceByKey at <console>:38
+
+scala> tot2.collect.foreach(println)
+(Delhi,130000)                                                                  
+(Hyd,230000)
+(Mumbai,140000)
+

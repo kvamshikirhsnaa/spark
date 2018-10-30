@@ -1,0 +1,224 @@
+scala> val lines = sc.textFile("hdfs://localhost/spark/empl.txt",1)
+lines: org.apache.spark.rdd.RDD[String] = hdfs://localhost/spark/empl.txt MapPartitionsRDD[1] at textFile at <console>:24
+
+scala> lines.partitions.size
+res2: Int = 1
+
+scala> val lines = sc.textFile("hdfs://localhost/spark/empl.txt")
+lines: org.apache.spark.rdd.RDD[String] = hdfs://localhost/spark/empl.txt MapPartitionsRDD[3] at textFile at <console>:24
+
+scala> lines.partitions.size
+res3: Int = 2
+
+scala> val lines = sc.textFile("hdfs://localhost/spark/empl.txt",4)
+lines: org.apache.spark.rdd.RDD[String] = hdfs://localhost/spark/empl.txt MapPartitionsRDD[5] at textFile at <console>:24
+
+scala> lines.partitions.size
+res4: Int = 4
+
+scala> val r = sc.parallelize(lines)
+<console>:26: error: type mismatch;
+ found   : org.apache.spark.rdd.RDD[String]
+ required: Seq[?]
+Error occurred in an application involving default arguments.
+       val r = sc.parallelize(lines)
+                              ^
+
+scala> val r = sc.parallelize(lines.collect)
+r: org.apache.spark.rdd.RDD[String] = ParallelCollectionRDD[6] at parallelize at <console>:26
+
+scala> val r = sc.parallelize(lines.collect).partitions.size
+r: Int = 2
+
+NOTE: By default from spark 2.x partitions size is 2.
+      in above when applying parallelize on lines it showing error. cuz lines is an RDD. 
+      lines.collect is local object so parallelize applies on local objects only.
+
+NOTE: lines has 4 partitions, we are decreasing partitions size by using parallize on  lines RDD.
+      now new RDD r has 2 partitions(defalut).it has same results of lines.
+       
+
+NOTE: after loading into spark also  using some special features we can change partitions size(increase/decrease).
+
+
+[edureka_334602@ip-20-0-41-190 ~]$ hadoop fs -cat sparklab/emply1.txt
+101,aishwarya,80000,F,12
+102,ganga,70000,F,11
+103,vamshikrishna,90000,M,13
+104,saikrishna,100000,M,12
+105,aravindswamy,80000,M,11
+106,archana,60000,F,13
+
+scala> val lines = sc.textFile("sparklab/emply1.txt")
+lines: org.apache.spark.rdd.RDD[String] = sparklab/emply1.txt MapPartitionsRDD[1] at textFile at <console>:24
+
+
+scala> lines.collect
+res0: Array[String] = Array(101,aishwarya,80000,F,12, 102,ganga,70000,F,11, 103,vamshikrishna,90000,M,13, 104,saikrishna,100000,M,12, 105,aravindswamy,80000,M,11, 106,archana,60000,F,13)
+
+scala> val w = lines.map(x => x.split(","))
+w: org.apache.spark.rdd.RDD[Array[String]] = MapPartitionsRDD[2] at map at <console>:26
+
+scala> w.collect
+res1: Array[Array[String]] = Array(Array(101, aishwarya, 80000, F, 12), Array(102, ganga, 70000, F, 11), 
+Array(103, vamshikrishna, 90000, M, 13), Array(104, saikrishna, 100000, M, 12), 
+Array(105, aravindswamy, 80000, M, 11), Array(106, archana, 60000, F, 13))
+
+scala> val pairs = w.map(x => ((x(3),x(4)),x(2).toInt))
+pairs: org.apache.spark.rdd.RDD[((String, String), Int)] = MapPartitionsRDD[3] at map at <console>:28
+
+scala> pairs.persist()
+res6: pairs.type = MapPartitionsRDD[3] at map at <console>:28
+
+scala> val sum = pairs.reduceByKey(_+_)
+sum: org.apache.spark.rdd.RDD[((String, String), Int)] = ShuffledRDD[4] at reduceByKey at <console>:30
+
+scala> sum.collect.foreach(println)
+((M,13),90000)                                                                  
+((F,11),70000)
+((F,12),80000)
+((F,13),60000)
+((M,11),80000)
+((M,12),100000)
+
+converting tuples format to String:
+-----------------------------------
+scala> def tupleToString(x:((String,String),Int),delim:Any) = {
+     |    val a = x._1._1
+     |    val b = x._1._2
+     |    val c = x._2
+     |    val res = a+delim+b+delim+c
+     |    res
+     | }
+tupleToString: (x: ((String, String), Int), delim: Any)String
+
+scala> val res = sum.map(x => tupleToString(x,"\t"))
+res: org.apache.spark.rdd.RDD[String] = MapPartitionsRDD[5] at map at <console>:34
+
+scala> res.collect.foreach(println)
+M       13      90000
+F       11      70000
+F       12      80000
+F       13      60000
+M       11      80000
+M       12      100000
+
+sorting:
+--------
+scala> sum.sortByKey().collect.foreach(println)
+((F,11),70000)
+((F,12),80000)
+((F,13),60000)
+((M,11),80000)
+((M,12),100000)
+((M,13),90000)
+
+max:
+----
+scala> val max = pairs.sortByKey().reduceByKey(Math.max(_,_))
+max: org.apache.spark.rdd.RDD[((String, String), Int)] = MapPartitionsRDD[16] at reduceByKey at <console>:30
+
+scala> max.collect.foreach(println)
+((F,11),70000)
+((F,12),80000)
+((F,13),60000)
+((M,11),80000)
+((M,12),100000)
+((M,13),90000)
+
+sum of each sex sal:
+--------------------
+scala> val w = lines.map(x => x.split(","))
+w: org.apache.spark.rdd.RDD[Array[String]] = MapPartitionsRDD[20] at map at <console>:26
+
+scala> val pairs1 = w.map(x => (x(3),x(2).toInt))
+pairs1: org.apache.spark.rdd.RDD[(String, Int)] = MapPartitionsRDD[21] at map at <console>:28
+
+scala> pairs1.collect.foreach(println)
+(F,80000)
+(F,70000)
+(M,90000)
+(M,100000)
+(M,80000)
+(F,60000)
+
+scala> val sum = pairs1.sortByKey().reduceByKey(_+_)
+sum: org.apache.spark.rdd.RDD[(String, Int)] = MapPartitionsRDD[30] at reduceByKey at <console>:30
+
+scala> sum.collect.foreach(println)
+(F,210000)                                                                      
+(M,270000)
+
+scala> val res = sum.map(x => (x._1+"\t"+x._2))
+res: org.apache.spark.rdd.RDD[String] = MapPartitionsRDD[31] at map at <console>:32
+
+scala> res.collect.foreach(println)
+F       210000
+M       270000
+
+
+Using blcok of stmts:
+---------------------
+scala> val pairs2 = lines.map { x =>
+     |    val w = x.split(",")
+     |    val sex = w(3)
+     |    val sal = w(2).toInt
+     |    (sex,sal)
+     | }
+pairs2: org.apache.spark.rdd.RDD[(String, Int)] = MapPartitionsRDD[33] at map at <console>:28
+
+scala> pairs2.collect
+res18: Array[(String, Int)] = Array((F,80000), (F,70000), (M,90000), (M,100000), (M,80000), (F,60000))
+
+scala> pairs2.collect.foreach(println)
+(F,80000)
+(F,70000)
+(M,90000)
+(M,100000)
+(M,80000)
+(F,60000)
+
+scala> val sum = pairs2.sortByKey().reduceByKey(_+_)
+sum: org.apache.spark.rdd.RDD[(String, Int)] = MapPartitionsRDD[41] at reduceByKey at <console>:30
+
+scala> sum.collect.foreach(println)
+(F,210000)
+(M,270000)
+
+scala> val max = pairs2.sortByKey().reduceByKey(Math.max(_,_))
+max: org.apache.spark.rdd.RDD[(String, Int)] = MapPartitionsRDD[45] at reduceByKey at <console>:30
+
+scala> max.collect.foreach(println)
+(F,80000)
+(M,100000)
+
+scala> val min = pairs2.sortByKey().reduceByKey(Math.min(_,_))
+min: org.apache.spark.rdd.RDD[(String, Int)] = MapPartitionsRDD[49] at reduceByKey at <console>:30
+
+scala> min.collect.foreach(println)
+(F,60000)
+(M,80000)
+
+NOTE: convert tuples format to String and save in HDFS.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

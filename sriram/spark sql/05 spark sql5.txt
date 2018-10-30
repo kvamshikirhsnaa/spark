@@ -1,0 +1,249 @@
+In VmWare:
+----------
+scala> val data1 = sc.textFile("/home/gopalkrishna/spark/emp1.txt")
+data1: org.apache.spark.rdd.RDD[String] = /home/gopalkrishna/spark/emp1.txt MapPartitionsRDD[9] at textFile at <console>:24
+
+scala> data1.collect
+res9: Array[String] = Array(101,vamshikrishna,80000,M,12, 102,ganga,60000,F,11, 103,aishwarya,70000,F,12, 104,saikrishna,90000,M,13, 105,aravind,80000,M,11, "")
+
+
+NOTE: data1 has null values, we have to clean it.
+
+scala> val data1new = data.filter(x => x!="")
+data1new: org.apache.spark.rdd.RDD[String] = MapPartitionsRDD[15] at filter at <console>:26
+
+scala> data1new.collect
+res12: Array[String] = Array(101,vamshikrishna,80000,M,12, 102,ganga,60000,F,11, 103,aishwarya,70000,F,12, 104,saikrishna,90000,M,13, 105,aravind,80000,M,11)
+
+NOTE: now data1new is cleaned
+
+scala> data1new.collect.foreach(println)
+101,vamshikrishna,80000,M,12
+102,ganga,60000,F,11
+103,aishwarya,70000,F,12
+104,saikrishna,90000,M,13
+105,aravind,80000,M,11
+
+scala> val data2 = sc.textFile("/home/gopalkrishna/spark/emp2.txt")
+data2: org.apache.spark.rdd.RDD[String] = /home/gopalkrishna/spark/emp2.txt MapPartitionsRDD[13] at textFile at <console>:24
+
+scala> data2.collect
+res11: Array[String] = Array(106,narahari,13,M,75000, 107,chintu,11,M,50000, 108,anji,15,M,40000, 109,swarna,12,F,30000, 110,gouthami,13,F,30000)
+
+scala> data2.collect.foreach(println)
+106,narahari,13,M,75000
+107,chintu,11,M,50000
+108,anji,15,M,40000
+109,swarna,12,F,30000
+110,gouthami,13,F,30000
+
+
+---> 2 RDDs(data1new,data2) data have same fields but in different order
+
+---> we need to merge them into single RDD and save the file into HDFS/LFS.
+
+scala> case class Emp(id:Int,name:String,sal:Int,sex:String,dno:Int)
+defined class Emp
+
+scala> def ToEmp(line:String) = 
+
+scala> def ToEmp(line:String) = {
+     |     val w = line.split(",")
+     |     val id = w(0).toInt
+     |     val name = w(1)
+     |     val sal = w(2).toInt
+     |     val sex = w(3)
+     |     val dno = w(4).toInt
+     |     Emp(id,name,sal,sex,dno)
+     | }
+ToEmp: (line: String)Emp
+
+scala> val emp = data1new.map(x => ToEmp(x))
+emp: org.apache.spark.rdd.RDD[Emp] = MapPartitionsRDD[16] at map at <console>:32
+
+scala> emp.collect.foreach(println)
+Emp(101,vamshikrishna,80000,M,12)
+Emp(102,ganga,60000,F,11)
+Emp(103,aishwarya,70000,F,12)
+Emp(104,saikrishna,90000,M,13)
+Emp(105,aravind,80000,M,11)
+
+
+scala> def ToEmp1(line:String) = {
+     |    val w = line.split(",")
+     |    val id = w(0).toInt
+     |    val name = w(1)
+     |    val dno = w(2).toInt
+     |    val sex = w(3)
+     |    val sal = w(4).toInt
+     |    Emp(id,name,sal,sex,dno)
+     | }
+ToEmp1: (line: String)Emp
+
+scala> val emp1 = data2.map(x => ToEmp1(x))
+emp1: org.apache.spark.rdd.RDD[Emp] = MapPartitionsRDD[17] at map at <console>:30
+
+scala> emp1.collect.foreach(println)
+Emp(106,narahari,75000,M,13)
+Emp(107,chintu,50000,M,11)
+Emp(108,anji,40000,M,15)
+Emp(109,swarna,30000,F,12)
+Emp(110,gouthami,30000,F,13)
+
+
+---> now emp, emp1 have same schema case class.
+
+converting 2 RDDs to Dataframes:
+--------------------------------
+scala> val df1 = emp.toDF
+df1: org.apache.spark.sql.DataFrame = [id: int, name: string ... 3 more fields]
+
+scala> val df2 = emp1.toDF
+df2: org.apache.spark.sql.DataFrame = [id: int, name: string ... 3 more fields]
+
+scala> df1.show()
++---+-------------+-----+---+---+
+| id|         name|  sal|sex|dno|
++---+-------------+-----+---+---+
+|101|vamshikrishna|80000|  M| 12|
+|102|        ganga|60000|  F| 11|
+|103|    aishwarya|70000|  F| 12|
+|104|   saikrishna|90000|  M| 13|
+|105|      aravind|80000|  M| 11|
++---+-------------+-----+---+---+
+
+
+scala> df2.show()
++---+--------+-----+---+---+
+| id|    name|  sal|sex|dno|
++---+--------+-----+---+---+
+|106|narahari|75000|  M| 13|
+|107|  chintu|50000|  M| 11|
+|108|    anji|40000|  M| 15|
+|109|  swarna|30000|  F| 12|
+|110|gouthami|30000|  F| 13|
++---+--------+-----+---+---+
+
+register 2 DataFrames as temp tables:
+-------------------------------------
+scala> df1.registerTempTable("emp1")
+warning: there was one deprecation warning; re-run with -deprecation for details
+
+scala> df2.registerTempTable("emp2")
+warning: there was one deprecation warning; re-run with -deprecation for details
+
+
+scala> spark.sql("select * from emp1").show()
++---+-------------+-----+---+---+
+| id|         name|  sal|sex|dno|
++---+-------------+-----+---+---+
+|101|vamshikrishna|80000|  M| 12|
+|102|        ganga|60000|  F| 11|
+|103|    aishwarya|70000|  F| 12|
+|104|   saikrishna|90000|  M| 13|
+|105|      aravind|80000|  M| 11|
++---+-------------+-----+---+---+
+
+
+scala> spark.sql("select * from emp2").show()
++---+--------+-----+---+---+
+| id|    name|  sal|sex|dno|
++---+--------+-----+---+---+
+|106|narahari|75000|  M| 13|
+|107|  chintu|50000|  M| 11|
+|108|    anji|40000|  M| 15|
+|109|  swarna|30000|  F| 12|
+|110|gouthami|30000|  F| 13|
++---+--------+-----+---+---+
+
+merging 2 tables as single table(union all):
+--------------------------------------------
+scala> val emp = spark.sql("select * from emp1 union all select * from emp2")
+emp: org.apache.spark.sql.DataFrame = [id: int, name: string ... 3 more fields]
+
+scala> emp.show()
++---+-------------+-----+---+---+
+| id|         name|  sal|sex|dno|
++---+-------------+-----+---+---+
+|101|vamshikrishna|80000|  M| 12|
+|102|        ganga|60000|  F| 11|
+|103|    aishwarya|70000|  F| 12|
+|104|   saikrishna|90000|  M| 13|
+|105|      aravind|80000|  M| 11|
+|106|     narahari|75000|  M| 13|
+|107|       chintu|50000|  M| 11|
+|108|         anji|40000|  M| 15|
+|109|       swarna|30000|  F| 12|
+|110|     gouthami|30000|  F| 13|
++---+-------------+-----+---+---+
+
+scala> emp.printSchema()
+root
+ |-- id: integer (nullable = true)
+ |-- name: string (nullable = true)
+ |-- sal: integer (nullable = true)
+ |-- sex: string (nullable = true)
+ |-- dno: integer (nullable = true)
+
+
+ scala> spark.sql("select e1.name,e1.sal from empNew e1").show
++-------------+-----+
+|         name|  sal|
++-------------+-----+
+|vamshikrishna|80000|
+|        ganga|60000|
+|    aishwarya|70000|
+|   saikrishna|90000|
+|      aravind|80000|
+|     narahari|75000|
+|       chintu|50000|
+|         anji|40000|
+|       swarna|30000|
+|     gouthami|30000|
++-------------+-----+
+
+
+
+Q:find whose sal is greater than avgsal of his dept:
+----------------------------------------------------
+first we need to emp DataFrame as temp table. then apply queries.
+
+scala> emp.registerTempTable("empNew")
+warning: there was one deprecation warning; re-run with -deprecation for details
+
+
+scala> val res = spark.sql("select e1.name,e1.sal,e3.avgsal from empNew e1 join (select e2.dno,avg(e2.sal) 
+                 as avgsal from empNew e2 group by e2.dno) e3 on (e1.dno = e3.dno) where e1.sal>e3.avgsal") 
+res: org.apache.spark.sql.DataFrame = [name: string, sal: int ... 1 more field]
+
+scala> res.show()
++-------------+-----+------------------+                                        
+|         name|  sal|            avgsal|
++-------------+-----+------------------+
+|vamshikrishna|80000|           60000.0|
+|    aishwarya|70000|           60000.0|
+|   saikrishna|90000|           65000.0|
+|     narahari|75000|           65000.0|
+|      aravind|80000|63333.333333333336|
++-------------+-----+------------------+
+
+
+Converting DataFrame to RDD:
+----------------------------
+scala> val empNew = res.rdd
+empNew: org.apache.spark.rdd.RDD[org.apache.spark.sql.Row] = MapPartitionsRDD[79] at rdd at <console>:25
+
+scala> empNew.collect.foreach(println)
+[vamshikrishna,80000,60000.0]                                                   
+[aishwarya,70000,60000.0]
+[saikrishna,90000,65000.0]
+[narahari,75000,65000.0]
+[aravind,80000,63333.333333333336]
+
+
+
+scala> empNew.saveAsTextFile("hdfs://localhost/spark/empNewOP")
+
+
+
+

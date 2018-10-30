@@ -1,0 +1,178 @@
+Ex2:
+----
+[edureka_334602@ip-20-0-41-202 ~]$ cat comment
+SaiKRIshna                 araViNDSwamy  PrAKAsh     NarAHARI             VAmshIKRishNa
+SriniVASUlu    goViND      KriSHNA       GnaNESHwar
+     NaNi              TiLAk       PraVEEn   MAhesh    nARI               SuDHEER       EshWAr   
+
+[edureka_334602@ip-20-0-41-202 ~]$ hadoop fs -put comment sparklab
+
+scala> scala> val lines = sc.textFile("sparklab/comment")
+lines: org.apache.spark.rdd.RDD[String] = sparklab/comment MapPartitionsRDD[16] at textFile at <console>:24
+
+scala> lines.collect.foreach(println)
+SaiKRIshna                 araViNDSwamy  PrAKAsh     NarAHARI             VAmshIKRishNa
+SriniVASUlu    goViND      KriSHNA       GnaNESHwar
+     NaNi              TiLAk       PraVEEn   MAhesh    nARI               SuDHEER       EshWAr     
+
+
+scala> val tr = lines.map(x => x.trim())
+tr: org.apache.spark.rdd.RDD[String] = MapPartitionsRDD[19] at map at <console>:26
+
+scala> tr.collect
+res17: Array[String] = Array(SaiKRIshna                 araViNDSwamy  PrAKAsh     NarAHARI             
+VAmshIKRishNa, SriniVASUlu    goViND      KriSHNA       GnaN
+ESHwar, NaNi              TiLAk       PraVEEn   MAhesh    nARI               SuDHEER       EshWAr)
+
+
+scala> val arr = tr.flatMap(x => x.split(" "))
+arr: org.apache.spark.rdd.RDD[String] = MapPartitionsRDD[3] at flatMap at <console>:28
+
+scala> arr.collect
+res2: Array[String] = Array(SaiKRIshna, "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", 
+araViNDSwamy, "", PrAKAsh, "", "", "", "", NarAHARI, "", "", "", "", "", "", "", "", "", "", "", "", 
+VAmshIKRishNa, SriniVASUlu, "", "", "", goViND, "", "", "", "", "", KriSHNA, "", "", "", "", "", "", 
+GnaNESHwar, NaNi, "", "", "", "", "", "", "", "", "", "", "", "", "", TiLAk, "", "", "", "", "", "", 
+PraVEEn, "", "", MAhesh, "", "", "", nARI, "", "", "", "", "", "", "", "", "", "", "", "", "", "", SuDHEER, 
+"", "", "", "", "", "", EshWAr)
+
+scala> val names = arr.filter(x => (x!=""))   // don't give space betweern cotes.
+names: org.apache.spark.rdd.RDD[String] = MapPartitionsRDD[4] at filter at <console>:30
+
+scala> names.collect
+res4: Array[String] = Array(SaiKRIshna, araViNDSwamy, PrAKAsh, NarAHARI, VAmshIKRishNa, SriniVASUlu, 
+goViND, KriSHNA, GnaNESHwar, NaNi, TiLAk, PraVEEn, MAhesh, nARI, SuDHEER, EshWAr)
+
+scala> names.count
+res7: Long = 16
+
+scala> val names2 = names.map(x => x.toUpperCase)
+names2: org.apache.spark.rdd.RDD[String] = MapPartitionsRDD[6] at map at <console>:32
+
+scala> names2.collect
+res8: Array[String] = Array(SAIKRISHNA, ARAVINDSWAMY, PRAKASH, NARAHARI, VAMSHIKRISHNA, SRINIVASULU, 
+GOVIND, KRISHNA, GNANESHWAR, NANI, TILAK, PRAVEEN, MAHESH, NARI, SUDHEER, ESHWAR)
+
+scala> val pairs = names2.map(x => (x,1))
+pairs: org.apache.spark.rdd.RDD[(String, Int)] = MapPartitionsRDD[7] at map at <console>:34
+
+scala> pairs.collect.foreach(println)
+(SAIKRISHNA,1)
+(ARAVINDSWAMY,1)
+(PRAKASH,1)
+(NARAHARI,1)
+(VAMSHIKRISHNA,1)
+(SRINIVASULU,1)
+(GOVIND,1)
+(KRISHNA,1)
+(GNANESHWAR,1)
+(NANI,1)
+(TILAK,1)
+(PRAVEEN,1)
+(MAHESH,1)
+(NARI,1)
+(SUDHEER,1)
+(ESHWAR,1)
+
+scala> val wc = pairs.reduceByKey(_+_)
+wc: org.apache.spark.rdd.RDD[(String, Int)] = ShuffledRDD[8] at reduceByKey at <console>:36
+
+scala> wc.collect.foreach(println)
+(ESHWAR,1)                                                                      
+(KRISHNA,1)
+(NARI,1)
+(ARAVINDSWAMY,1)
+(VAMSHIKRISHNA,1)
+(PRAKASH,1)
+(NANI,1)
+(SUDHEER,1)
+(NARAHARI,1)
+(MAHESH,1)
+(GNANESHWAR,1)
+(GOVIND,1)
+(TILAK,1)
+(SAIKRISHNA,1)
+(PRAVEEN,1)
+(SRINIVASULU,1)
+
+NOTE: hear all names are unique so we didn't get any difference.
+
+2nd way(using block of stmts):
+------------------------------
+scala> val lines = sc.textFile("sparklab/comment")
+lines: org.apache.spark.rdd.RDD[String] = sparklab/comment MapPartitionsRDD[1] at textFile at <console>:24
+
+scala> val wc  = lines.map { x =>
+     |    val tr = x.trim()
+     |    val arr = tr.split(" ")
+     |    val fil = arr.filter(x => (x!=""))
+     |    val names = fil.map(x => x.toUpperCase)
+     |    val pairs = names.map(x => (x,1))
+     |    pairs
+     | }.flatMap(x => x).reduceByKey(_+_)
+wc: org.apache.spark.rdd.RDD[(String, Int)] = ShuffledRDD[4] at reduceByKey at <console>:33
+
+scala> wc.collect.foreach(println)
+(ESHWAR,1)                                                                      
+(KRISHNA,1)
+(NARI,1)
+(ARAVINDSWAMY,1)
+(VAMSHIKRISHNA,1)
+(PRAKASH,1)
+(NANI,1)
+(SUDHEER,1)
+(NARAHARI,1)
+(MAHESH,1)
+(GNANESHWAR,1)
+(GOVIND,1)
+(TILAK,1)
+(SAIKRISHNA,1)
+(PRAVEEN,1)
+(SRINIVASULU,1)
+
+
+3rd way:
+--------
+we can declare method and pass whole dataset:
+---------------------------------------------
+scala> def rmSpaces(x:String) = {
+     |   val tr = x.trim()
+     |   val arr = tr.split(" ")
+     |   val fil = arr.filter(x => (x!=""))
+     |   val names = fil.map(x => x.toUpperCase)
+     |   val pairs = names.map(x => (x,1))
+     |   pairs
+     | }
+rmSpaces: (x: String)Array[(String, Int)]
+
+scala> val names = lines.map(x => rmSpaces(x))
+names: org.apache.spark.rdd.RDD[Array[(String, Int)]] = MapPartitionsRDD[4] at map at <console>:28
+
+scala> names.collect
+res0: Array[Array[(String, Int)]] = Array(Array((SAIKRISHNA,1), (ARAVINDSWAMY,1), (PRAKASH,1), (NARAHARI,1), 
+(VAMSHIKRISHNA,1)), Array((SRINIVASULU,1), (GOVIND,1),(KRISHNA,1), (GNANESHWAR,1)), Array((NANI,1), (TILAK,1), 
+(PRAVEEN,1), (MAHESH,1), (NARI,1), (SUDHEER,1), (ESHWAR,1)))
+
+
+scala> names.reduceByKey(_+_)
+<console>:31: error: value reduceByKey is not a member of org.apache.spark.rdd.RDD[Array[(String, Int)]]
+       names.reduceByKey(_+_)
+             ^
+
+NOTE: we applied map only in our method the results are array collection. we can't apply
+      reduceByKey on array collection.apply flatMap and reduceByKey.
+
+scala> val names2 = names.flatMap(x => x).reduceByKey(_+_)
+names2: org.apache.spark.rdd.RDD[(String, Int)] = ShuffledRDD[8] at reduceByKey at <console>:30
+
+scala> names2.collect
+res3: Array[(String, Int)] = Array((ESHWAR,1), (KRISHNA,1), (NARI,1), (ARAVINDSWAMY,1), (VAMSHIKRISHNA,1), 
+(PRAKASH,1), (NANI,1), (SUDHEER,1), (NARAHARI,1), (MAHESH,1), (GNANESHWAR,1), (GOVIND,1), (TILAK,1), 
+(SAIKRISHNA,1), (PRAVEEN,1), (SRINIVASULU,1))
+
+
+
+
+
+
+

@@ -1,0 +1,304 @@
+Joins:
+------
+scala> val data = sc.textFile("spark/emp1.txt")
+data: org.apache.spark.rdd.RDD[String] = spark/emp1.txt MapPartitionsRDD[91] at textFile at <console>:24
+
+scala> data.collect()
+res38: Array[String] = Array(101,vamshikrishna,80000,M,12, 102,ganga,60000,F,11, 103,aishwarya,70000,F,12, 104,saikrishna,90000,M,13, 105,aravind,80000,M,11, "")
+
+cleaning null values:
+---------------------
+scala> val newdata = data.filter(x => x!="")
+newdata: org.apache.spark.rdd.RDD[String] = MapPartitionsRDD[93] at filter at <console>:26
+
+scala> newdata.collect()
+res40: Array[String] = Array(101,vamshikrishna,80000,M,12, 102,ganga,60000,F,11, 103,aishwarya,70000,F,12, 104,saikrishna,90000,M,13, 105,aravind,80000,M,11)
+
+scala> case class Emp(id:Int,name:String,sal:Int,sex:String,dno:Int)
+defined class Emp
+
+scala> def TomEmp(line:String) = {
+     |    val w = line.split(",")
+     |    val id = w(0).toInt
+     |    val name = w(1)
+     |    val sal = w(2).toInt
+     |    val sex = w(3)
+     |    val dno = w(4).toInt
+     |    Emp(id,name,sal,sex,dno)
+     | }
+TomEmp: (line: String)Emp
+
+scala> val emp = newdata.map(x => ToEmp(x))
+emp: org.apache.spark.rdd.RDD[Emp] = MapPartitionsRDD[94] at map at <console>:32
+
+scala> emp.collect.foreach(println)
+Emp(101,vamshikrishna,80000,M,12)
+Emp(102,ganga,60000,F,11)
+Emp(103,aishwarya,70000,F,12)
+Emp(104,saikrishna,90000,M,13)
+Emp(105,aravind,80000,M,11)
+
+scala> val data2 = sc.textFile("spark/dept.txt")
+data2: org.apache.spark.rdd.RDD[String] = spark/dept.txt MapPartitionsRDD[96] at textFile at <console>:24
+
+scala> data2.collect
+res43: Array[String] = Array(11,Marketing,Hyd, 12,HR,Delhi, 13,Finance,Mumbai, 14,Admin,Chennai)
+
+NOTE: data2 has no null values,cleaned.
+
+scala> case class Dept(dno:Int,dname:String,loc:String)
+defined class Dept
+
+scala> def ToDept(line:String) = {
+     |    val w = line.split(",")
+     |    val dno = w(0).toInt
+     |    val dname = w(1)
+     |    val city = w(2)
+     |    Dept(dno,dname,city)
+     | }
+ToDept: (line: String)Dept
+
+scala> val dept = data2.map(x => ToDept(x))
+dept: org.apache.spark.rdd.RDD[Dept] = MapPartitionsRDD[97] at map at <console>:30
+
+scala> dept.collect.foreach(println)
+Dept(11,Marketing,Hyd)
+Dept(12,HR,Delhi)
+Dept(13,Finance,Mumbai)
+Dept(14,Admin,Chennai)
+
+
+scala> dept.map(x => x.dno).collect
+res48: Array[Int] = Array(11, 12, 13, 14)
+
+scala> dept.map(x => x.dname).collect
+res49: Array[String] = Array(Marketing, HR, Finance, Admin) 
+
+scala> dept.map(x => x.city).collect
+<console>:33: error: value city is not a member of Dept
+       dept.map(x => x.city).collect
+                       ^
+
+scala> dept.map(x => x.loc).collect
+res52: Array[String] = Array(Hyd, Delhi, Mumbai, Chennai)                       
+
+
+NOTE: whatever we give in case class shema that variable names only we have to use.
+
+---> now we have emp,dept 2 RDDs as with case class schema.
+
+converting RDDs to DataFrames:
+------------------------------
+scala> val empNew = emp.toDF
+empNew: org.apache.spark.sql.DataFrame = [id: int, name: string ... 3 more fields]
+
+scala> val deptNew = dept.toDF
+deptNew: org.apache.spark.sql.DataFrame = [dno: int, dname: string ... 1 more field]
+
+scala> empNew.printSchema()
+root
+ |-- id: integer (nullable = true)
+ |-- name: string (nullable = true)
+ |-- sal: integer (nullable = true)
+ |-- sex: string (nullable = true)
+ |-- dno: integer (nullable = true)
+
+scala> deptNew.printSchema()
+root
+ |-- dno: integer (nullable = true)
+ |-- dname: string (nullable = true)
+ |-- loc: string (nullable = true)
+
+ scala> empNew.show()
++---+-------------+-----+---+---+
+| id|         name|  sal|sex|dno|
++---+-------------+-----+---+---+
+|101|vamshikrishna|80000|  M| 12|
+|102|        ganga|60000|  F| 11|
+|103|    aishwarya|70000|  F| 12|
+|104|   saikrishna|90000|  M| 13|
+|105|      aravind|80000|  M| 11|
++---+-------------+-----+---+---+
+
+
+scala> deptNew.show()
++---+---------+-------+
+|dno|    dname|    loc|
++---+---------+-------+
+| 11|Marketing|    Hyd|
+| 12|       HR|  Delhi|
+| 13|  Finance| Mumbai|
+| 14|    Admin|Chennai|
++---+---------+-------+
+
+
+---> now we have 2 DataFrmaes, register them as temp tables and apply joins.
+
+scala> empNew.registerTempTable("empl")
+warning: there was one deprecation warning; re-run with -deprecation for details
+
+scala> deptNew.registerTempTable("dept")
+warning: there was one deprecation warning; re-run with -deprecation for details
+
+
+scala> val res = spark.sql("select * from empl e join dept d on (e.dno=d.dno)")
+res: org.apache.spark.sql.DataFrame = [id: int, name: string ... 6 more fields]
+
+scala> res.show()
++---+-------------+-----+---+---+---+---------+------+                          
+| id|         name|  sal|sex|dno|dno|    dname|   loc|
++---+-------------+-----+---+---+---+---------+------+
+|101|vamshikrishna|80000|  M| 12| 12|       HR| Delhi|
+|103|    aishwarya|70000|  F| 12| 12|       HR| Delhi|
+|104|   saikrishna|90000|  M| 13| 13|  Finance|Mumbai|
+|102|        ganga|60000|  F| 11| 11|Marketing|   Hyd|
+|105|      aravind|80000|  M| 11| 11|Marketing|   Hyd|
++---+-------------+-----+---+---+---+---------+------+
+
+scala> res.registerTempTable("empdept")
+warning: there was one deprecation warning; re-run with -deprecation for details
+
+scala> val res1 = spark.sql("select dno,sex,sum(sal) as tot,avg(sal) as avg,max(sal) as max,
+                  min(sal) as min,count(*) from empdept group by dno,sex")
+org.apache.spark.sql.AnalysisException: Reference 'dno' is ambiguous, could be: dno#160, dno#172.; line 1 pos 110
+  at org.apache.spark.sql.catalyst.plans.logical.LogicalPlan.resolve(LogicalPlan.scala:264)
+
+NOTE: there are 2 column names with dno in res DataFrame so that results we reistered into empdept so
+      ambiguous error is raising.
+
+for solution:
+-------------
+scala> val res = spark.sql("select e.id,e.name,e.sal,e.sex,e.dno,d.dname,d.loc from empl e 
+                 join dept d on (e.dno=d.dno)")
+res: org.apache.spark.sql.DataFrame = [id: int, name: string ... 5 more fields]
+
+scala> res.show()
++---+-------------+-----+---+---+---------+------+
+| id|         name|  sal|sex|dno|    dname|   loc|
++---+-------------+-----+---+---+---------+------+
+|101|vamshikrishna|80000|  M| 12|       HR| Delhi|
+|103|    aishwarya|70000|  F| 12|       HR| Delhi|
+|104|   saikrishna|90000|  M| 13|  Finance|Mumbai|
+|102|        ganga|60000|  F| 11|Marketing|   Hyd|
+|105|      aravind|80000|  M| 11|Marketing|   Hyd|
++---+-------------+-----+---+---+---------+------+
+
+scala> res.select("name","sal").show()
++-------------+-----+
+|         name|  sal|
++-------------+-----+
+|vamshikrishna|80000|
+|    aishwarya|70000|
+|   saikrishna|90000|
+|      aravind|80000|
+|        ganga|60000|
++-------------+-----+
+
+scala> res.select("name").show()
++-------------+
+|         name|
++-------------+
+|vamshikrishna|
+|    aishwarya|
+|   saikrishna|
+|        ganga|
+|      aravind|
++-------------+
+
+scala> res.groupBy("sex").sum("sal").show()
++---+--------+                                                                  
+|sex|sum(sal)|
++---+--------+
+|  F|  130000|
+|  M|  250000|
++---+--------+
+
+scala> res.groupBy("sex").max("sal").show()
++---+--------+
+|sex|max(sal)|
++---+--------+
+|  F|   70000|
+|  M|   90000|
++---+--------+
+
+scala> res.groupBy("sex").min("sal").show()
++---+--------+
+|sex|min(sal)|
++---+--------+
+|  F|   60000|
+|  M|   80000|
++---+--------+
+
+scala> res.groupBy("sex").mean("sal").show()
++---+-----------------+                                                         
+|sex|         avg(sal)|
++---+-----------------+
+|  F|          65000.0|
+|  M|83333.33333333333|
++---+-----------------+
+
+scala> res.groupBy("sex").count.show()
++---+-----+
+|sex|count|
++---+-----+
+|  F|    2|
+|  M|    3|
++---+-----+
+
+Register DataFrame res as temp table for all sql select queries:
+----------------------------------------------------------------
+
+scala> res.registerTempTable("empdept1")
+warning: there was one deprecation warning; re-run with -deprecation for details
+
+scala> val res1 = spark.sql("select dno,sex,sum(sal) as tot,avg(sal) as avg,max(sal) as max,
+                  min(sal) as min,count(*) from empdept1 group by dno,sex")
+res1: org.apache.spark.sql.DataFrame = [dno: int, sex: string ... 5 more fields]
+
+scala> res1.show()
++---+---+-----+-------+-----+-----+--------+                                    
+|dno|sex|  tot|    avg|  max|  min|count(1)|
++---+---+-----+-------+-----+-----+--------+
+| 12|  M|80000|80000.0|80000|80000|       1|
+| 12|  F|70000|70000.0|70000|70000|       1|
+| 13|  M|90000|90000.0|90000|90000|       1|
+| 11|  F|60000|60000.0|60000|60000|       1|
+| 11|  M|80000|80000.0|80000|80000|       1|
++---+---+-----+-------+-----+-----+--------+
+
+Converting DataFrame into RDD:
+------------------------------
+scala> val empdeptrdd = res1.rdd
+empdeptrdd: org.apache.spark.rdd.RDD[org.apache.spark.sql.Row] = MapPartitionsRDD[165] at rdd at <console>:25
+
+scala> empdeptrdd.collect.foreach(println)
+[12,M,80000,80000.0,80000,80000,1]                                              
+[12,F,70000,70000.0,70000,70000,1]
+[13,M,90000,90000.0,90000,90000,1]
+[11,F,60000,60000.0,60000,60000,1]
+[11,M,80000,80000.0,80000,80000,1]
+
+
+Ex2:
+----
+scala> val sessionsDF = Seq(("day1","user1","session1", 100.0),("day1","user1","session2",200.0), 
+     | ("day2","user1","session3",300.0),("day2","user1","session4",400.0), 
+     | ("day2","user1","session4",99.0)) .toDF("day","userId","sessionId","purchaseTotal")
+sessionsDF: org.apache.spark.sql.DataFrame = [day: string, userId: string ... 2 more fields]
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

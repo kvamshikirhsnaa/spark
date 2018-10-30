@@ -1,0 +1,182 @@
+hive-spark integration:
+-----------------------
+scala> import org.apache.spark.sql.hive.HiveContext
+import org.apache.spark.sql.hive.HiveContext
+
+scala> val hc = new HiveContext(sc)
+warning: there was one deprecation warning; re-run with -deprecation for details
+hc: org.apache.spark.sql.hive.HiveContext = org.apache.spark.sql.hive.HiveContext@25fe6a95
+
+scala> hc
+res0: org.apache.spark.sql.hive.HiveContext = org.apache.spark.sql.hive.HiveContext@62c53685
+
+scala> hc.sql("create database myspark21")
+res2: org.apache.spark.sql.DataFrame = []
+
+scala> hc.sql("use myspark21")
+res3: org.apache.spark.sql.DataFrame = []
+
+scala> hc.sql("create table samp(id int,name string)")
+res4: org.apache.spark.sql.DataFrame = []
+
+scala> hc.sql("insert into table samp values(101,'saikrishna')")
+res5: org.apache.spark.sql.DataFrame = []
+
+[edureka_334602@ip-20-0-41-190 ~]$ hadoop fs -ls /user/hive/warehouse/myspark21.db
+Found 1 items
+drwxrwxrwx   - edureka_334602 hive          0 2018-09-13 21:04 /user/hive/warehouse/myspark21.db/samp
+
+[edureka_334602@ip-20-0-41-190 ~]$ hadoop fs -ls /user/hive/warehouse/myspark21.db/samp
+Found 1 items
+-rwxrwxrwx   3 edureka_334602 hive         15 2018-09-13 21:04 /user/hive/warehouse/myspark21.db/samp/part-00000
+
+[edureka_334602@ip-20-0-41-190 ~]$ hadoop fs -cat /user/hive/warehouse/myspark21.db/samp/part-00000
+101saikrishna
+
+NOTE: under hive metastore we created myspark21 database and created a table samp.
+      
+NOTE: results of every query is a DataFrame, when integrated hive with spark.
+
+hive> use myspark21;
+OK
+
+hive> show tables;
+OK
+samp
+Time taken: 0.838 seconds, Fetched: 1 row(s)
+
+hive> select * from samp;
+OK
+101     saikrishna
+
+scala> val s2 = hc.sql("insert into table samp values(102,'aravind')")
+s2: org.apache.spark.sql.DataFrame = []
+
+hive> select * from samp;
+OK
+101     saikrishna
+102     aravind
+Time taken: 0.057 seconds, Fetched: 2 row(s)
+
+NOTE: whatever we do create or modificatons  all apply on hive environment only.
+
+Ex:
+---
+scala> hc.sql("use hive21")
+res12: org.apache.spark.sql.DataFrame = []
+
+scala> hc.sql("show tables")
+res13: org.apache.spark.sql.DataFrame = [database: string, tableName: string ... 1 more field]
+
+scala> hc.sql("show tables").show()
++--------+-----------------+-----------+
+|database|        tableName|isTemporary|
++--------+-----------------+-----------+
+|  hive21|              abc|      false|
+|  hive21|         airlines|      false|
+|  hive21|         airports|      false|
+|  hive21|         aviation|      false|
+|  hive21|        book_join|      false|
+|  hive21|     book_ratings|      false|
+|  hive21| book_ratings_new|      false|
+|  hive21|       book_users|      false|
+|  hive21|            books|      false|
+|  hive21|        books_new|      false|
+|  hive21|            cards|      false|
+|  hive21|       categories|      false|
+|  hive21|      categories2|      false|
+|  hive21|         comments|      false|
+|  hive21|          country|      false|
+|  hive21|           cust21|      false|
+|  hive21|        customers|      false|
+|  hive21|      customers21|      false|
+|  hive21|denguecaresection|      false|
+|  hive21|      departments|      false|
++--------+-----------------+-----------+
+only showing top 20 rows
+
+NOTE: on DataFrame show() operation will show only first 20 records.
+
+scala> hc.sql("select * from aviation")
+res15: org.apache.spark.sql.DataFrame = [year: int, month: int ... 6 more fields]
+
+scala> hc.sql("select * from aviation").show()
++----+-----+----------+------+----+---------+-----------+---------+
+|year|month|flight_num|origin|dest|cancelled|cancel_code|diversion|
++----+-----+----------+------+----+---------+-----------+---------+
++----+-----+----------+------+----+---------+-----------+---------+
+
+
+Ex3:
+----
+scala> hc.sql("use myspark21")
+res24: org.apache.spark.sql.DataFrame = []
+
+scala> hc.sql("create table emp(id int,name string,sal int,sex string,dno int)")
+res26: org.apache.spark.sql.DataFrame = []
+
+
+scala> hc.sql("load data inpath 'sparklab/employ1.txt' into table emp")
+res28: org.apache.spark.sql.DataFrame = []
+
+hive> show tables;
+OK
+emp
+samp
+Time taken: 0.012 seconds, Fetched: 2 row(s)
+
+scala> hc.sql("load data inpath 'sparklab/emply1.txt' into table emp")
+res30: org.apache.spark.sql.DataFrame = []
+
+hive> select * from emp;
+OK
+NULL    NULL    NULL    NULL    NULL
+NULL    NULL    NULL    NULL    NULL
+NULL    NULL    NULL    NULL    NULL
+NULL    NULL    NULL    NULL    NULL
+NULL    NULL    NULL    NULL    NULL
+NULL    NULL    NULL    NULL    NULL
+NULL    NULL    NULL    NULL    NULL
+NULL    NULL    NULL    NULL    NULL
+NULL    NULL    NULL    NULL    NULL
+NULL    NULL    NULL    NULL    NULL
+NULL    NULL    NULL    NULL    NULL
+NULL    NULL    NULL    NULL    NULL
+Time taken: 0.045 seconds, Fetched: 12 row(s)
+
+NOTE: we created table with hive default delimiter, but input file has comma(,) delimiter so we got nulls.
+
+hive> drop table emp;
+OK
+Time taken: 0.066 seconds
+
+scala> hc.sql("create table emp(id int,name string,sal int,sex string,dno int) row format 
+       delimited fields terminated by ','")
+res32: org.apache.spark.sql.DataFrame = []
+
+scala> hc.sql("load data local inpath 'emply1.txt' into table emp")
+res33: org.apache.spark.sql.DataFrame = []
+
+scala> hc.sql("load data local inpath 'emply1.txt' overwrite into table emp")
+res10: org.apache.spark.sql.DataFrame = []
+
+hive> select *  from emp;
+OK
+107     tulasi  50000   F       11
+108     gouthami        70000   F       12
+109     prakash 60000   M       13
+110     narahari        80000   M       12
+111     praveen 70000   M       13
+112     janaki  40000   F       12
+101     aishwarya       80000   F       12
+102     ganga   70000   F       11
+103     vamshikrishna   90000   M       13
+104     saikrishna      100000  M       12
+105     aravindswamy    80000   M       11
+106     archana 60000   F       13
+
+
+
+
+
+
